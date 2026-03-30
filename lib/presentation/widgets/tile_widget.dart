@@ -1,0 +1,98 @@
+import 'package:flutter/material.dart';
+import '../../domain/models/tile.dart';
+
+class TileWidget extends StatelessWidget {
+  final Tile tile;
+  final double size;
+  final VoidCallback onTap;
+
+  const TileWidget({
+    super.key,
+    required this.tile,
+    required this.size,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final double badgeDiameter = size * 0.3;
+    final double letterSize = size * 0.5;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          clipBehavior: Clip.none, // Allow badge to overflow
+          children: [
+            // The Coin Square
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: tile.color,
+                  borderRadius: BorderRadius.circular(16.0),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withAlpha(80),
+                      blurRadius: 6,
+                      offset: const Offset(2, 4),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    tile.letter,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: letterSize,
+                      fontWeight: FontWeight.bold,
+                      shadows: const [
+                        Shadow(
+                          color: Colors.black26,
+                          blurRadius: 2,
+                          offset: Offset(1, 1),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // The Badge
+            Positioned(
+              top: -badgeDiameter / 2, // Centered on the top corner
+              right: -badgeDiameter / 2, // Centered on the right corner
+              child: Container(
+                width: badgeDiameter,
+                height: badgeDiameter,
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black45,
+                      blurRadius: 3,
+                      offset: Offset(1, 2),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    '${tile.value}',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: badgeDiameter * 0.6,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
