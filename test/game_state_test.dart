@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:match_3_plus/domain/logic/game_state.dart';
-import 'package:match_3_plus/domain/models/tile.dart';
+import 'package:badger/domain/logic/game_state.dart';
+import 'package:badger/domain/models/tile.dart';
 
 /// Helper to create a tile with minimal boilerplate.
 Tile makeTile({
@@ -204,8 +204,7 @@ void main() {
   });
 
   group('calculateMatchesScore — scoring rules', () {
-    test('single attribute match: multiplier is 1', () {
-      // 3 tiles same color, different letters, different values
+    test('color-only match: sum * 1', () {
       final match = [
         makeTile(row: 0, col: 0, color: Colors.blue, letter: 'A', value: 3),
         makeTile(row: 0, col: 1, color: Colors.blue, letter: 'B', value: 5),
@@ -213,38 +212,11 @@ void main() {
       ];
 
       final score = gameState.calculateMatchesScore([match]);
-      // (3 + 5 + 7) * 1 = 15
+      // color: (3+5+7)*1 = 15
       expect(score, 15);
     });
 
-    test('two attributes match: multiplier is 2', () {
-      // Same color AND same letter, different values
-      final match = [
-        makeTile(row: 0, col: 0, color: Colors.blue, letter: 'Q', value: 3),
-        makeTile(row: 0, col: 1, color: Colors.blue, letter: 'Q', value: 5),
-        makeTile(row: 0, col: 2, color: Colors.blue, letter: 'Q', value: 7),
-      ];
-
-      final score = gameState.calculateMatchesScore([match]);
-      // (3 + 5 + 7) * 2 = 30
-      expect(score, 30);
-    });
-
-    test('all three attributes match: multiplier is 3', () {
-      // Same color, same letter, same value
-      final match = [
-        makeTile(row: 0, col: 0, color: Colors.blue, letter: 'Q', value: 7),
-        makeTile(row: 0, col: 1, color: Colors.blue, letter: 'Q', value: 7),
-        makeTile(row: 0, col: 2, color: Colors.blue, letter: 'Q', value: 7),
-      ];
-
-      final score = gameState.calculateMatchesScore([match]);
-      // (7 + 7 + 7) * 3 = 63
-      expect(score, 63);
-    });
-
-    test('value-only match: multiplier is 1', () {
-      // Different colors, different letters, same value
+    test('value-only match: sum * 2', () {
       final match = [
         makeTile(row: 0, col: 0, color: Colors.red, letter: 'A', value: 4),
         makeTile(row: 0, col: 1, color: Colors.blue, letter: 'B', value: 4),
@@ -252,11 +224,11 @@ void main() {
       ];
 
       final score = gameState.calculateMatchesScore([match]);
-      // (4 + 4 + 4) * 1 = 12
-      expect(score, 12);
+      // badge: (4+4+4)*2 = 24
+      expect(score, 24);
     });
 
-    test('letter-only match: multiplier is 1', () {
+    test('letter-only match: sum * 3', () {
       final match = [
         makeTile(row: 0, col: 0, color: Colors.red, letter: 'Z', value: 1),
         makeTile(row: 0, col: 1, color: Colors.blue, letter: 'Z', value: 3),
@@ -264,8 +236,44 @@ void main() {
       ];
 
       final score = gameState.calculateMatchesScore([match]);
-      // (1 + 3 + 9) * 1 = 13
-      expect(score, 13);
+      // letter: (1+3+9)*3 = 39
+      expect(score, 39);
+    });
+
+    test('color + letter match: sum * (1+3) = sum * 4', () {
+      final match = [
+        makeTile(row: 0, col: 0, color: Colors.blue, letter: 'Q', value: 3),
+        makeTile(row: 0, col: 1, color: Colors.blue, letter: 'Q', value: 5),
+        makeTile(row: 0, col: 2, color: Colors.blue, letter: 'Q', value: 7),
+      ];
+
+      final score = gameState.calculateMatchesScore([match]);
+      // color: 15*1 + letter: 15*3 = 15 + 45 = 60
+      expect(score, 60);
+    });
+
+    test('color + value match: sum * (1+2) = sum * 3', () {
+      final match = [
+        makeTile(row: 0, col: 0, color: Colors.blue, letter: 'A', value: 4),
+        makeTile(row: 0, col: 1, color: Colors.blue, letter: 'B', value: 4),
+        makeTile(row: 0, col: 2, color: Colors.blue, letter: 'C', value: 4),
+      ];
+
+      final score = gameState.calculateMatchesScore([match]);
+      // color: 12*1 + badge: 12*2 = 12 + 24 = 36
+      expect(score, 36);
+    });
+
+    test('all three attributes match: sum * (1+2+3) = sum * 6', () {
+      final match = [
+        makeTile(row: 0, col: 0, color: Colors.blue, letter: 'Q', value: 7),
+        makeTile(row: 0, col: 1, color: Colors.blue, letter: 'Q', value: 7),
+        makeTile(row: 0, col: 2, color: Colors.blue, letter: 'Q', value: 7),
+      ];
+
+      final score = gameState.calculateMatchesScore([match]);
+      // color: 21*1 + badge: 21*2 + letter: 21*3 = 21 + 42 + 63 = 126
+      expect(score, 126);
     });
 
     test('multiple match groups sum their scores', () {
@@ -281,12 +289,11 @@ void main() {
       ];
 
       final score = gameState.calculateMatchesScore([match1, match2]);
-      // (2+3+5)*1 + (1+4+6)*1 = 10 + 11 = 21
+      // color-only each: 10*1 + 11*1 = 21
       expect(score, 21);
     });
 
     test('4-tile color match scores correctly (no double count)', () {
-      // Reproduces the original bug: W,F,M,Z diagonal
       final tiles = buildBoard([
         makeTile(row: 0, col: 0, color: Colors.blue, letter: 'W', value: 1),
         makeTile(row: 1, col: 1, color: Colors.blue, letter: 'F', value: 1),
@@ -299,7 +306,7 @@ void main() {
           m.every((t) => t.color == Colors.blue)).toList();
       final score = gameState.calculateMatchesScore(blueMatches);
 
-      // (1 + 1 + 7 + 2) * 1 = 11, NOT 21
+      // color-only: (1+1+7+2)*1 = 11
       expect(score, 11);
     });
 

@@ -63,10 +63,7 @@ Widget _buildTopBar() {
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        GestureDetector(
-          onTap: () => _gameState.toggleHint(),
-          child: _buildInfoColumn('MOVE CREDITS', 'B', isIcon: true),
-        ),
+        _buildInfoColumn('MOVE CREDITS', 'B', isIcon: true),
         Column(
             children: [
               Text(
@@ -83,7 +80,10 @@ Widget _buildTopBar() {
               ),
             ],
           ),
-          _buildInfoColumn('OPTIMUM SCORE', _gameState.optimumScore.toString()),
+          GestureDetector(
+            onTap: () => _gameState.toggleHint(),
+            child: _buildInfoColumn('OPTIMUM SCORE', _gameState.optimumScore.toString()),
+          ),
         ],
       ),
     );

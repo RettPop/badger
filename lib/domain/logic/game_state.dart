@@ -181,12 +181,12 @@ class GameState extends ChangeNotifier {
         if (tile.value != firstBadge) allSameBadge = false;
       }
 
-      int multiplier = 0;
-      if (allSameColor) multiplier++;
-      if (allSameLetter) multiplier++;
-      if (allSameBadge) multiplier++;
+      int score = 0;
+      if (allSameColor) score += sumBadges;
+      if (allSameBadge) score += sumBadges * 2;
+      if (allSameLetter) score += sumBadges * 3;
 
-      totalMoveScore += sumBadges * multiplier;
+      totalMoveScore += score;
     }
     return totalMoveScore;
   }
