@@ -5,12 +5,16 @@ class TileWidget extends StatelessWidget {
   final Tile tile;
   final double size;
   final VoidCallback onTap;
+  final bool isOptimum;
+  final bool isHintSwap;
 
   const TileWidget({
     super.key,
     required this.tile,
     required this.size,
     required this.onTap,
+    this.isOptimum = false,
+    this.isHintSwap = false,
   });
 
   @override
@@ -18,13 +22,20 @@ class TileWidget extends StatelessWidget {
     final double badgeDiameter = size * 0.3;
     final double letterSize = size * 0.5;
 
+    Color? borderColor;
+    if (isHintSwap) {
+      borderColor = Colors.red;
+    } else if (isOptimum) {
+      borderColor = Colors.blue;
+    }
+
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
         width: size,
         height: size,
         child: Stack(
-          clipBehavior: Clip.none, // Allow badge to overflow
+          clipBehavior: Clip.none,
           children: [
             // The Coin Square
             Positioned.fill(
@@ -32,6 +43,9 @@ class TileWidget extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: tile.color,
                   borderRadius: BorderRadius.circular(16.0),
+                  border: borderColor != null
+                    ? Border.all(color: borderColor, width: 8)
+                    : null,
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withAlpha(80),
@@ -61,8 +75,8 @@ class TileWidget extends StatelessWidget {
             ),
             // The Badge
             Positioned(
-              top: -badgeDiameter / 2, // Centered on the top corner
-              right: -badgeDiameter / 2, // Centered on the right corner
+              top: -badgeDiameter / 2,
+              right: -badgeDiameter / 2,
               child: Container(
                 width: badgeDiameter,
                 height: badgeDiameter,

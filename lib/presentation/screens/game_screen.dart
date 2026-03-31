@@ -44,22 +44,25 @@ class _GameScreenState extends State<GameScreen> {
       ),
     );
   }
-
-  Widget _buildTopBar() {
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      decoration: const BoxDecoration(
-        color: Colors.green,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
-        ),
+Widget _buildTopBar() {
+  return Container(
+    padding: const EdgeInsets.all(16.0),
+    decoration: const BoxDecoration(
+      color: Colors.green,
+      borderRadius: BorderRadius.only(
+        bottomLeft: Radius.circular(24),
+        bottomRight: Radius.circular(24),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          _buildInfoColumn('MOVE CREDITS', 'B', isIcon: true),
-          Column(
+    ),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        GestureDetector(
+          onTap: () => _gameState.toggleHint(),
+          child: _buildInfoColumn('MOVE CREDITS', 'B', isIcon: true),
+        ),
+        Column(
+...
             children: [
               Text(
                 _gameState.totalScore.toString().padLeft(4, '0'),
@@ -127,6 +130,22 @@ class _GameScreenState extends State<GameScreen> {
           IconButton(
             icon: const Icon(Icons.home, color: Colors.white70, size: 40),
             onPressed: () {},
+          ),
+          IconButton(
+            icon: Icon(
+              _gameState.isSnapshotMode ? Icons.camera : Icons.camera_outlined,
+              color: _gameState.isSnapshotMode ? Colors.blueAccent : Colors.white70,
+              size: 40,
+            ),
+            onPressed: () => _gameState.toggleSnapshotMode(),
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.play_arrow,
+              color: _gameState.isPausedForSnapshot ? Colors.greenAccent : Colors.white24,
+              size: 40,
+            ),
+            onPressed: _gameState.isPausedForSnapshot ? () => _gameState.continueFromSnapshot() : null,
           ),
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white70, size: 40),

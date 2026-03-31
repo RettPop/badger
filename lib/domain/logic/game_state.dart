@@ -12,6 +12,15 @@ class GameState extends ChangeNotifier {
   bool isMatching = false;
   bool showOptimumCelebration = false;
 
+  // Snapshot & Hint properties
+  bool isSnapshotMode = false;
+  bool isPausedForSnapshot = false;
+  bool showHint = false;
+  List<Tile> userMatchTiles = [];
+  List<Tile> optimumMatchTiles = [];
+  List<Tile> optimumSwapTiles = [];
+  List<List<Tile>> currentMatches = [];
+
   final Random _random = Random();
 
   final List<Color> colors = [
@@ -28,11 +37,26 @@ class GameState extends ChangeNotifier {
     initializeBoard();
   }
 
+  void toggleSnapshotMode() {
+    isSnapshotMode = !isSnapshotMode;
+    notifyListeners();
+  }
+
+  void toggleHint() {
+    showHint = !showHint;
+    notifyListeners();
+  }
+
   void initializeBoard() {
     tiles.clear();
     lastMoveScore = 0;
-    // Generate board. We don't check for initial matches anymore 
-    // because they don't auto-match.
+    isPausedForSnapshot = false;
+    showHint = false;
+    userMatchTiles.clear();
+    optimumMatchTiles.clear();
+    optimumSwapTiles.clear();
+    currentMatches.clear();
+    
     for (int r = 0; r < rows; r++) {
       for (int c = 0; c < cols; c++) {
         tiles.add(_generateRandomTile(r, c));
@@ -61,7 +85,6 @@ class GameState extends ChangeNotifier {
     final boardTiles = customTiles ?? tiles;
     List<List<Tile>> allMatches = [];
 
-    // Helper to get tile at (r, c)
     Tile? getTile(int r, int c) {
       if (r < 0 || r >= rows || c < 0 || c >= cols) return null;
       try {
@@ -72,10 +95,10 @@ class GameState extends ChangeNotifier {
     }
 
     final List<Point<int>> directions = [
-      const Point(0, 1),  // Horizontal
-      const Point(1, 0),  // Vertical
-      const Point(1, 1),  // Diagonal \
-      const Point(1, -1), // Diagonal /
+      const Point(0, 1),
+      const Point(1, 0),
+      const Point(1, 1),
+      const Point(1, -1),
     ];
 
     for (int r = 0; r < rows; r++) {
@@ -118,7 +141,6 @@ class GameState extends ChangeNotifier {
 
     if (activeTiles == null) return allMatches;
 
-    // Filter matches to only those intersecting with activeTiles
     List<List<Tile>> filteredMatches = [];
     Set<String> activeIds = activeTiles.map((t) => t.id).toSet();
     
@@ -161,12 +183,13 @@ class GameState extends ChangeNotifier {
   }
 
   Future<void> swapTiles(Tile t1, Tile t2) async {
-    if (isMatching) return;
+    if (isMatching || isPausedForSnapshot) return;
     
     if ((t1.row == t2.row && (t1.col - t2.col).abs() == 1) ||
         (t1.col == t2.col && (t1.row - t2.row).abs() == 1)) {
       
       isMatching = true;
+      showHint = false; // Hide hint on move
       notifyListeners();
 
       int idx1 = tiles.indexOf(t1);
@@ -183,14 +206,10 @@ class GameState extends ChangeNotifier {
 
       List<List<Tile>> matches = findMatches(activeTiles: [newT1, newT2]);
       if (matches.isEmpty) {
-        // Swap back
         tiles[idx1] = t1;
         tiles[idx2] = t2;
-        
-        // False move penalty
         if (totalScore > 0) totalScore -= 1;
         lastMoveScore = -1;
-        
         isMatching = false;
         notifyListeners();
       } else {
@@ -199,13 +218,30 @@ class GameState extends ChangeNotifier {
         if (moveScore >= optimumScore) {
           showOptimumCelebration = true;
         }
-        await processMatches(matches);
+
+        if (isSnapshotMode) {
+          isPausedForSnapshot = true;
+          currentMatches = matches;
+          userMatchTiles = [];
+          for (var match in matches) {
+            userMatchTiles.addAll(match);
+          }
+          notifyListeners();
+        } else {
+          await processMatches(matches);
+        }
       }
     }
   }
 
+  Future<void> continueFromSnapshot() async {
+    if (!isPausedForSnapshot) return;
+    isPausedForSnapshot = false;
+    userMatchTiles.clear();
+    await processMatches(currentMatches);
+  }
+
   Future<void> processMatches(List<List<Tile>> matches) async {
-    // We only process the matches passed in. No more cascade loops.
     int score = calculateMatchesScore(matches);
     totalScore += score;
     
@@ -235,21 +271,35 @@ class GameState extends ChangeNotifier {
 
   void calculateOptimumScore() {
     int maxScore = 0;
+    List<Tile> bestTiles = [];
+    List<Tile> bestSwap = [];
     
     for (int r = 0; r < rows; r++) {
       for (int c = 0; c < cols; c++) {
         if (c < cols - 1) {
-          maxScore = max(maxScore, _simulateMove(r, c, r, c + 1));
+          var res = _simulateMove(r, c, r, c + 1);
+          if (res.score > maxScore) {
+            maxScore = res.score;
+            bestTiles = res.matchedTiles;
+            bestSwap = res.swapTiles;
+          }
         }
         if (r < rows - 1) {
-          maxScore = max(maxScore, _simulateMove(r, c, r + 1, c));
+          var res = _simulateMove(r, c, r + 1, c);
+          if (res.score > maxScore) {
+            maxScore = res.score;
+            bestTiles = res.matchedTiles;
+            bestSwap = res.swapTiles;
+          }
         }
       }
     }
     optimumScore = maxScore;
+    optimumMatchTiles = bestTiles;
+    optimumSwapTiles = bestSwap;
   }
 
-  int _simulateMove(int r1, int c1, int r2, int c2) {
+  ({int score, List<Tile> matchedTiles, List<Tile> swapTiles}) _simulateMove(int r1, int c1, int r2, int c2) {
     List<Tile> tempTiles = List.from(tiles);
     int idx1 = tempTiles.indexWhere((t) => t.row == r1 && t.col == c1);
     int idx2 = tempTiles.indexWhere((t) => t.row == r2 && t.col == c2);
@@ -264,8 +314,17 @@ class GameState extends ChangeNotifier {
     tempTiles[idx2] = newT2;
 
     List<List<Tile>> matches = findMatches(customTiles: tempTiles, activeTiles: [newT1, newT2]);
-    if (matches.isEmpty) return 0;
+    if (matches.isEmpty) return (score: 0, matchedTiles: [], swapTiles: []);
 
-    return calculateMatchesScore(matches);
+    List<Tile> allMatchTiles = [];
+    for (var m in matches) {
+      allMatchTiles.addAll(m);
+    }
+
+    return (
+      score: calculateMatchesScore(matches), 
+      matchedTiles: allMatchTiles, 
+      swapTiles: [t1, t2] // The original tiles before the swap for identification
+    );
   }
 }

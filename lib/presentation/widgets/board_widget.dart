@@ -16,7 +16,7 @@ class _BoardWidgetState extends State<BoardWidget> {
   Tile? _selectedTile;
 
   void _handleTileTap(Tile tile) {
-    if (widget.gameState.isMatching) return;
+    if (widget.gameState.isMatching || widget.gameState.isPausedForSnapshot) return;
 
     if (_selectedTile == null) {
       setState(() {
@@ -43,29 +43,36 @@ class _BoardWidgetState extends State<BoardWidget> {
         final int cols = widget.gameState.cols;
         final int rows = widget.gameState.rows;
 
-        // Distance between coins is 20% of coin size
-        // TotalWidth = cols * S + (cols - 1) * 0.2 * S
         final double widthBasedSize = constraints.maxWidth / (cols + (cols - 1) * 0.2 + 0.4); 
         final double heightBasedSize = constraints.maxHeight / (rows + (rows - 1) * 0.2 + 0.4);
 
         final double coinSize = (widthBasedSize < heightBasedSize ? widthBasedSize : heightBasedSize);
         final double spacing = coinSize * 0.2;
-        final double padding = coinSize * 0.2; // Border around the grid
+        final double padding = coinSize * 0.2;
 
         final double boardWidth = cols * coinSize + (cols - 1) * spacing + padding * 2;
         final double boardHeight = rows * coinSize + (rows - 1) * spacing + padding * 2;
 
         final List<Tile> sortedTiles = List.from(widget.gameState.tiles);
+        
+        Set<String> userMatchIds = widget.gameState.userMatchTiles.map((t) => t.id).toSet();
+        Set<String> optimumMatchIds = widget.gameState.optimumMatchTiles.map((t) => t.id).toSet();
+        Set<String> optimumSwapIds = widget.gameState.optimumSwapTiles.map((t) => t.id).toSet();
+
         sortedTiles.sort((a, b) {
-          // Selected tile always on top
-          if (a.id == _selectedTile?.id) return 1;
-          if (b.id == _selectedTile?.id) return -1;
+          bool aSpecial = a.id == _selectedTile?.id || 
+                          userMatchIds.contains(a.id) || 
+                          (widget.gameState.isPausedForSnapshot && optimumMatchIds.contains(a.id)) ||
+                          (widget.gameState.showHint && (optimumMatchIds.contains(a.id) || optimumSwapIds.contains(a.id)));
           
-          // To make badges (top-right) visible, we draw from top to bottom, 
-          // and from right to left? No, badges are at top-right.
-          // If we draw (0,1) then (0,0), (0,0)'s badge is on top of (0,1). Correct.
-          // If we draw (0,0) then (1,0), (1,0)'s badge is on top of (0,0). Correct.
-          // So: Row Ascending, Col Descending.
+          bool bSpecial = b.id == _selectedTile?.id || 
+                          userMatchIds.contains(b.id) || 
+                          (widget.gameState.isPausedForSnapshot && optimumMatchIds.contains(b.id)) ||
+                          (widget.gameState.showHint && (optimumMatchIds.contains(b.id) || optimumSwapIds.contains(b.id)));
+          
+          if (aSpecial && !bSpecial) return 1;
+          if (!aSpecial && bSpecial) return -1;
+          
           if (a.row != b.row) return a.row.compareTo(b.row);
           return b.col.compareTo(a.col);
         });
@@ -75,7 +82,7 @@ class _BoardWidgetState extends State<BoardWidget> {
             width: boardWidth,
             height: boardHeight,
             decoration: BoxDecoration(
-              color: Colors.black, // Dark field
+              color: Colors.black,
               borderRadius: BorderRadius.circular(24.0),
               boxShadow: [
                 BoxShadow(
@@ -91,6 +98,11 @@ class _BoardWidgetState extends State<BoardWidget> {
                 clipBehavior: Clip.none,
                 children: sortedTiles.map((tile) {
                   bool isSelected = _selectedTile?.id == tile.id;
+                  bool isUserMatch = userMatchTilesIntersect(tile);
+                  bool isOptimumMatch = optimumMatchTilesIntersect(tile);
+                  bool isHintSwap = optimumSwapTilesIntersect(tile) && widget.gameState.showHint;
+                  bool showOptimumBorder = (isOptimumMatch && (widget.gameState.isPausedForSnapshot || widget.gameState.showHint));
+                  
                   return AnimatedPositioned(
                     key: ValueKey(tile.id),
                     duration: const Duration(milliseconds: 300),
@@ -99,12 +111,15 @@ class _BoardWidgetState extends State<BoardWidget> {
                     top: tile.row * (coinSize + spacing),
                     width: coinSize,
                     height: coinSize,
-                    child: Transform.scale(
-                      scale: isSelected ? 1.1 : 1.0,
+                    child: AnimatedScale(
+                      scale: isUserMatch ? 1.2 : (isSelected ? 1.1 : 1.0),
+                      duration: const Duration(milliseconds: 200),
                       child: TileWidget(
                         tile: tile,
                         size: coinSize,
                         onTap: () => _handleTileTap(tile),
+                        isOptimum: showOptimumBorder && !isHintSwap,
+                        isHintSwap: isHintSwap,
                       ),
                     ),
                   );
@@ -115,5 +130,17 @@ class _BoardWidgetState extends State<BoardWidget> {
         );
       },
     );
+  }
+
+  bool userMatchTilesIntersect(Tile tile) {
+    return widget.gameState.userMatchTiles.any((t) => t.id == tile.id);
+  }
+
+  bool optimumMatchTilesIntersect(Tile tile) {
+    return widget.gameState.optimumMatchTiles.any((t) => t.id == tile.id);
+  }
+
+  bool optimumSwapTilesIntersect(Tile tile) {
+    return widget.gameState.optimumSwapTiles.any((t) => t.id == tile.id);
   }
 }
