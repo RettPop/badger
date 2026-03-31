@@ -84,6 +84,7 @@ class GameState extends ChangeNotifier {
   List<List<Tile>> findMatches({List<Tile>? customTiles, List<Tile>? activeTiles}) {
     final boardTiles = customTiles ?? tiles;
     List<List<Tile>> allMatches = [];
+    Set<String> visited = {};
 
     Tile? getTile(int r, int c) {
       if (r < 0 || r >= rows || c < 0 || c >= cols) return null;
@@ -104,6 +105,9 @@ class GameState extends ChangeNotifier {
     for (int r = 0; r < rows; r++) {
       for (int c = 0; c < cols; c++) {
         for (var dir in directions) {
+          String startKey = '$r,$c,${dir.x},${dir.y}';
+          if (visited.contains(startKey)) continue;
+
           Tile? t1 = getTile(r, c);
           Tile? t2 = getTile(r + dir.x, c + dir.y);
           Tile? t3 = getTile(r + 2 * dir.x, c + 2 * dir.y);
@@ -133,6 +137,11 @@ class GameState extends ChangeNotifier {
                 break;
               }
             }
+
+            for (var tile in match) {
+              visited.add('${tile.row},${tile.col},${dir.x},${dir.y}');
+            }
+
             allMatches.add(match);
           }
         }
@@ -143,13 +152,13 @@ class GameState extends ChangeNotifier {
 
     List<List<Tile>> filteredMatches = [];
     Set<String> activeIds = activeTiles.map((t) => t.id).toSet();
-    
+
     for (var match in allMatches) {
       if (match.any((t) => activeIds.contains(t.id))) {
         filteredMatches.add(match);
       }
     }
-    
+
     return filteredMatches;
   }
 

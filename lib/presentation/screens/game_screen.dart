@@ -36,7 +36,13 @@ class _GameScreenState extends State<GameScreen> {
                   ],
                 ),
                 if (_gameState.showOptimumCelebration)
-                  _buildCelebrationOverlay(),
+                  GestureDetector(
+                    onTap: () {
+                      _gameState.showOptimumCelebration = false;
+                      _gameState.notifyListeners();
+                    },
+                    child: _buildCelebrationOverlay(),
+                  ),
               ],
             );
           },
@@ -62,7 +68,6 @@ Widget _buildTopBar() {
           child: _buildInfoColumn('MOVE CREDITS', 'B', isIcon: true),
         ),
         Column(
-...
             children: [
               Text(
                 _gameState.totalScore.toString().padLeft(4, '0'),
