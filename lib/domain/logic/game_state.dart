@@ -9,6 +9,14 @@ class GameState extends ChangeNotifier {
   int totalScore = 0;
   int lastMoveScore = 0;
   int optimumScore = 0;
+  int previousOptimumScore = 0;
+  
+  // Quality tracking
+  double sessionUserScore = 0;
+  double sessionOptimumScore = 0;
+
+  double get moveQuality => sessionOptimumScore > 0 ? (sessionUserScore / sessionOptimumScore) : 0;
+
   bool isMatching = false;
   bool showOptimumCelebration = false;
 
@@ -50,6 +58,10 @@ class GameState extends ChangeNotifier {
   void initializeBoard() {
     tiles.clear();
     lastMoveScore = 0;
+    optimumScore = 0;
+    previousOptimumScore = 0;
+    sessionUserScore = 0;
+    sessionOptimumScore = 0;
     isPausedForSnapshot = false;
     showHint = false;
     userMatchTiles.clear();
@@ -84,7 +96,7 @@ class GameState extends ChangeNotifier {
   List<List<Tile>> findMatches({List<Tile>? customTiles, List<Tile>? activeTiles}) {
     final boardTiles = customTiles ?? tiles;
     List<List<Tile>> allMatches = [];
-    Set<String> visited = {};
+    Set<String> visited = {}; // Use keys to prevent redundant matches in one scan
 
     Tile? getTile(int r, int c) {
       if (r < 0 || r >= rows || c < 0 || c >= cols) return null;
@@ -137,11 +149,12 @@ class GameState extends ChangeNotifier {
                 break;
               }
             }
-
+            
+            // Mark these tiles as visited for this direction to avoid overlapping subsets
             for (var tile in match) {
               visited.add('${tile.row},${tile.col},${dir.x},${dir.y}');
             }
-
+            
             allMatches.add(match);
           }
         }
@@ -152,13 +165,13 @@ class GameState extends ChangeNotifier {
 
     List<List<Tile>> filteredMatches = [];
     Set<String> activeIds = activeTiles.map((t) => t.id).toSet();
-
+    
     for (var match in allMatches) {
       if (match.any((t) => activeIds.contains(t.id))) {
         filteredMatches.add(match);
       }
     }
-
+    
     return filteredMatches;
   }
 
@@ -181,12 +194,12 @@ class GameState extends ChangeNotifier {
         if (tile.value != firstBadge) allSameBadge = false;
       }
 
-      int score = 0;
-      if (allSameColor) score += sumBadges;
-      if (allSameBadge) score += sumBadges * 2;
-      if (allSameLetter) score += sumBadges * 3;
+      int multiplier = 0;
+      if (allSameColor) multiplier++;
+      if (allSameLetter) multiplier++;
+      if (allSameBadge) multiplier++;
 
-      totalMoveScore += score;
+      totalMoveScore += sumBadges * multiplier;
     }
     return totalMoveScore;
   }
@@ -198,7 +211,7 @@ class GameState extends ChangeNotifier {
         (t1.col == t2.col && (t1.row - t2.row).abs() == 1)) {
       
       isMatching = true;
-      showHint = false; // Hide hint on move
+      showHint = false;
       notifyListeners();
 
       int idx1 = tiles.indexOf(t1);
@@ -215,15 +228,29 @@ class GameState extends ChangeNotifier {
 
       List<List<Tile>> matches = findMatches(activeTiles: [newT1, newT2]);
       if (matches.isEmpty) {
+        // Swap back
         tiles[idx1] = t1;
         tiles[idx2] = t2;
+        
+        // False move penalty
         if (totalScore > 0) totalScore -= 1;
         lastMoveScore = -1;
+        
+        // Track quality for false move
+        sessionUserScore -= 1;
+        sessionOptimumScore += optimumScore;
+        
         isMatching = false;
         notifyListeners();
       } else {
         int moveScore = calculateMatchesScore(matches);
         lastMoveScore = moveScore;
+        previousOptimumScore = optimumScore; // Capture before move
+        
+        // Track quality for successful move
+        sessionUserScore += moveScore;
+        sessionOptimumScore += optimumScore;
+        
         if (moveScore >= optimumScore) {
           showOptimumCelebration = true;
         }
@@ -271,6 +298,11 @@ class GameState extends ChangeNotifier {
     
     notifyListeners();
     await Future.delayed(const Duration(milliseconds: 300));
+    
+    // If we are celebrating an optimum move, wait a bit longer so user can see it
+    if (showOptimumCelebration) {
+      await Future.delayed(const Duration(milliseconds: 1500));
+    }
     
     isMatching = false;
     showOptimumCelebration = false;
@@ -333,7 +365,7 @@ class GameState extends ChangeNotifier {
     return (
       score: calculateMatchesScore(matches), 
       matchedTiles: allMatchTiles, 
-      swapTiles: [t1, t2] // The original tiles before the swap for identification
+      swapTiles: [t1, t2]
     );
   }
 }

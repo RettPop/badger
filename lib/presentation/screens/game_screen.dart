@@ -74,9 +74,25 @@ Widget _buildTopBar() {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              Text(
-                _gameState.lastMoveScore > 0 ? '+${_gameState.lastMoveScore}' : '',
-                style: const TextStyle(color: Colors.white70, fontSize: 18),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_gameState.lastMoveScore != 0)
+                    Text(
+                      'YOU: ${_gameState.lastMoveScore > 0 ? "+" : ""}${_gameState.lastMoveScore}  ',
+                      style: const TextStyle(color: Colors.white70, fontSize: 16),
+                    ),
+                  if (_gameState.previousOptimumScore > 0)
+                    Text(
+                      'BEST: +${_gameState.previousOptimumScore}',
+                      style: const TextStyle(color: Colors.blueAccent, fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'QUALITY: ${(_gameState.moveQuality * 100).toStringAsFixed(0)}%',
+                    style: const TextStyle(color: Colors.orangeAccent, fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
             ],
           ),
