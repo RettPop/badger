@@ -16,11 +16,15 @@ If the swap results in a match of 3 or more tiles, the tiles are removed and the
 
 The score is based on the value of the badge of each tile in the group. 
 
-1. if all tiles in the group have identical color, the score is the sum of the badge values of all tiles in the group.
-2. if all tiles in the group have identical badge value, the score is the sum of the badge values of all tiles in the group multiplied by 2.
-3. if all tiles in the group have identical letter, the score is the sum of the badge values of all tiles in the group multiplied by 3.
+Each attribute match provides a multiplier for the sum of badge values in the group:
+1. **Color Match:** Multiplier 1x.
+2. **Badge (Value) Match:** Multiplier 2x.
+3. **Letter Match:** Multiplier 3x.
 
-Total score of the group is the sum of the scores for each attribute.
+Total score of the group is the sum of the scores for each matching attribute.
+If a group matches multiple attributes, their multipliers are summed. 
+Example: A group matching both Letter (3x) and Badge (2x) has a total multiplier of 5x.
+
 Total score of the move is the sum of the scores of all groups found in the move.
 
 Example:
@@ -52,43 +56,31 @@ The player swapped tiles at (0, 1) and (1, 1). In the After move state:
 
 Group A: Horizontal (Row 0)
 - Tiles: (0,0), (0,1), (0,2) -> 0C2, 0A3, 0A4
-- Intersecting: Yes (contains 0A3 at 0,1)
-- Shared Attributes:
-    - Color: 0 (Blue), 0 (Blue), 0 (Blue) -> MATCH
-    - Letter: C, A, A -> NO
-    - Badge: 2, 3, 4 -> NO
-- Multiplier: 1x (Only Color)
+- Shared Attributes: Color (0)
+- Multiplier: 1x (Color)
 - Calculation: (2 + 3 + 4) × 1 = 9 points
 
 Group B: Vertical (Col 1)
 - Tiles: (1,1), (2,1), (3,1) -> 2C2, 1G2, 0K2
-- Intersecting: Yes (contains 2C2 at 1,1)
-- Shared Attributes:
-    - Badge: 2, 2, 2 -> MATCH
-    - Color: 2 (Green), 1 (Yellow), 0 (Blue) -> NO
-    - Letter: C, G, K -> NO
-- Multiplier: 1x (Only Badge)
-- Calculation: (2 + 2 + 2) × 1 = 6 points
+- Shared Attributes: Badge (2)
+- Multiplier: 2x (Badge)
+- Calculation: (2 + 2 + 2) × 2 = 12 points
 
 Group C: Diagonal (\ Direction)
 - Tiles: (0,0), (1,1), (2,2) -> 0C2, 2C2, 2C2
-- Intersecting: Yes (contains 2C2 at 1,1)
-- Shared Attributes:
-    - Letter: C, C, C -> MATCH
-    - Badge: 2, 2, 2 -> MATCH
-    - Color: 0 (Blue), 2 (Green), 2 (Green) -> NO
-- Multiplier: 2x (Letter + Badge)
-- Calculation: (2 + 2 + 2) × 2 = 12 points
+- Shared Attributes: Letter (C) AND Badge (2)
+- Multiplier: 3x (Letter) + 2x (Badge) = 5x
+- Calculation: (2 + 2 + 2) × 5 = 30 points
 
 ---
 
 3. Total Move Score
 - Group A: 9
-- Group B: 6
-- Group C: 12
-- Total: 27 points
+- Group B: 12
+- Group C: 30
+- Total: 51 points
 
 Summary for User Review:
 - Matching Groups: 3
-- Highest Multiplier: 2x (Diagonal match sharing both Letter 'C' and Value 2)
-- Total Move Score: 27
+- Highest Multiplier: 5x (Diagonal match sharing both Letter 'C' and Value 2)
+- Total Move Score: 51

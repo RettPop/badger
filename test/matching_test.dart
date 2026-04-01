@@ -33,7 +33,7 @@ void main() {
   }
 
   group('Match Calculation Logic - Verified Boards', () {
-    test('Case 0: Agreed Example Move (Score 27)', () async {
+    test('Case 0: Agreed Example Move (Score 51)', () async {
       // Swapped (0,1) and (1,1)
       const String gridAfterMove = '''
         0C2  0A3  0A4  1X5
@@ -54,18 +54,18 @@ void main() {
         activeTiles: [tile1, tile2],
       );
 
-      // Verify groups:
-      // 1. Horiz (0,0)-(0,2) [Color 0]. Multiplier 1. Sum 2+3+4=9.
-      // 2. Vert (1,1)-(3,1) [Badge 2]. Multiplier 1. Sum 2+2+2=6.
-      // 3. Diag (0,0)-(2,2) [Letter C, Badge 2]. Multiplier 2. Sum 2+2+2=6. Score 12.
-      // Total: 9 + 6 + 12 = 27.
+      // Verify groups (New rules: Color=1, Value/Badge=2, Letter=3):
+      // 1. Horiz (0,0)-(0,2) [Color 0]. Multiplier 1. Sum 2+3+4=9. Score 9.
+      // 2. Vert (1,1)-(3,1) [Badge 2]. Multiplier 2. Sum 2+2+2=6. Score 12.
+      // 3. Diag (0,0)-(2,2) [Letter C, Badge 2]. Multiplier 2+3=5. Sum 2+2+2=6. Score 30.
+      // Total: 9 + 12 + 30 = 51.
 
       final score = gameState.calculateMatchesScore(matches);
       
-      expect(score, 27, reason: 'Case 0 failed. Expected 27, got $score');
+      expect(score, 51, reason: 'Case 0 failed. Expected 51, got $score');
     });
 
-    test('Case 1: Multiple Attribute Match (Multiplier 3x)', () async {
+    test('Case 1: Multiple Attribute Match (Multiplier 1+2+3=6x)', () async {
       const String grid = '''
         0A5  0A5  0A5  1X1
         1B2  2C3  3D4  4E5
@@ -79,8 +79,8 @@ void main() {
       final matches = gameState.findMatches(customTiles: tiles, activeTiles: [tile1]);
       final score = gameState.calculateMatchesScore(matches);
       
-      // (5+5+5) * 3 = 45
-      expect(score, 45);
+      // (5+5+5) * (1+2+3) = 15 * 6 = 90
+      expect(score, 90);
     });
 
     test('Case 2: Intersecting Matches (Summed)', () async {

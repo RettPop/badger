@@ -2,6 +2,12 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../models/tile.dart';
 
+class MatchGroup {
+  final List<Tile> tiles;
+  final String attribute;
+  MatchGroup({required this.tiles, required this.attribute});
+}
+
 class GameState extends ChangeNotifier {
   final int rows = 5;
   final int cols = 4;
@@ -93,9 +99,9 @@ class GameState extends ChangeNotifier {
     );
   }
 
-  List<List<Tile>> findMatches({List<Tile>? customTiles, List<Tile>? activeTiles}) {
+  List<MatchGroup> findMatchesInternal({List<Tile>? customTiles, List<Tile>? activeTiles}) {
     final boardTiles = customTiles ?? tiles;
-    List<List<Tile>> allMatches = [];
+    List<MatchGroup> allMatches = [];
 
     Tile? getTile(int r, int c) {
       if (r < 0 || r >= rows || c < 0 || c >= cols) return null;
@@ -114,19 +120,15 @@ class GameState extends ChangeNotifier {
     ];
 
     for (var dir in directions) {
-      Set<String> visitedInDir = {};
-      for (int r = 0; r < rows; r++) {
-        for (int c = 0; c < cols; c++) {
-          if (visitedInDir.contains('$r,$c')) continue;
+      for (var attr in ['color', 'letter', 'value']) {
+        Set<String> visitedForAttrDir = {};
+        for (int r = 0; r < rows; r++) {
+          for (int c = 0; c < cols; c++) {
+            if (visitedForAttrDir.contains('$r,$c')) continue;
 
-          Tile? startTile = getTile(r, c);
-          if (startTile == null) continue;
+            Tile? startTile = getTile(r, c);
+            if (startTile == null) continue;
 
-          // Find the longest group in this direction where ALL tiles share 
-          // AT LEAST ONE common attribute across the whole group.
-          List<Tile>? bestGroup;
-
-          for (var attr in ['color', 'letter', 'value']) {
             List<Tile> currentGroup = [startTile];
             int offset = 1;
             while (true) {
@@ -147,17 +149,10 @@ class GameState extends ChangeNotifier {
             }
 
             if (currentGroup.length >= 3) {
-              if (bestGroup == null || currentGroup.length > bestGroup.length) {
-                bestGroup = currentGroup;
+              allMatches.add(MatchGroup(tiles: currentGroup, attribute: attr));
+              for (var m in currentGroup) {
+                visitedForAttrDir.add('${m.row},${m.col}');
               }
-            }
-          }
-
-          if (bestGroup != null) {
-            allMatches.add(bestGroup);
-            // Mark ALL members as visited for THIS direction to prevent sub-groups.
-            for (var m in bestGroup) {
-              visitedInDir.add('${m.row},${m.col}');
             }
           }
         }
@@ -166,12 +161,11 @@ class GameState extends ChangeNotifier {
 
     if (activeTiles == null) return allMatches;
 
-    // Filter to groups intersecting with flipped coins
-    List<List<Tile>> filteredMatches = [];
+    List<MatchGroup> filteredMatches = [];
     Set<String> activeIds = activeTiles.map((t) => t.id).toSet();
     
     for (var match in allMatches) {
-      if (match.any((t) => activeIds.contains(t.id))) {
+      if (match.tiles.any((t) => activeIds.contains(t.id))) {
         filteredMatches.add(match);
       }
     }
@@ -179,30 +173,73 @@ class GameState extends ChangeNotifier {
     return filteredMatches;
   }
 
+  List<List<Tile>> findMatches({List<Tile>? customTiles, List<Tile>? activeTiles}) {
+    return findMatchesInternal(customTiles: customTiles, activeTiles: activeTiles)
+        .map((m) => m.tiles)
+        .toList();
+  }
+
   int calculateMatchesScore(List<List<Tile>> matches) {
-    int totalMoveScore = 0;
-    for (var match in matches) {
-      int sumBadges = match.fold(0, (sum, tile) => sum + tile.value);
+    Map<String, ({List<Tile> tiles, Set<String> attributes})> uniqueGroups = {};
+    for (var m in matches) {
+      List<String> ids = m.map((t) => t.id).toList()..sort();
+      String key = ids.join('|');
       
-      // Determine attributes shared by ALL tiles in the group
       bool sameColor = true;
-      bool sameLetter = true;
       bool sameValue = true;
-
-      for (int i = 1; i < match.length; i++) {
-        if (match[i].color != match[0].color) sameColor = false;
-        if (match[i].letter != match[0].letter) sameLetter = false;
-        if (match[i].value != match[0].value) sameValue = false;
+      bool sameLetter = true;
+      for (int i = 1; i < m.length; i++) {
+        if (m[i].color != m[0].color) sameColor = false;
+        if (m[i].value != m[0].value) sameValue = false;
+        if (m[i].letter != m[0].letter) sameLetter = false;
       }
-
-      int multiplier = 0;
-      if (sameColor) multiplier++;
-      if (sameLetter) multiplier++;
-      if (sameValue) multiplier++;
-
-      totalMoveScore += sumBadges * multiplier;
+      
+      Set<String> attrs = {};
+      if (sameColor) attrs.add('color');
+      if (sameValue) attrs.add('value');
+      if (sameLetter) attrs.add('letter');
+      
+      if (uniqueGroups.containsKey(key)) {
+        uniqueGroups[key]!.attributes.addAll(attrs);
+      } else {
+        uniqueGroups[key] = (tiles: m, attributes: attrs);
+      }
     }
-    return totalMoveScore;
+
+    int totalScore = 0;
+    uniqueGroups.forEach((key, data) {
+      int sum = data.tiles.fold(0, (sum, t) => sum + t.value);
+      int mult = 0;
+      if (data.attributes.contains('color')) mult += 1;
+      if (data.attributes.contains('value')) mult += 2;
+      if (data.attributes.contains('letter')) mult += 3;
+      totalScore += sum * mult;
+    });
+    return totalScore;
+  }
+
+  int calculateMatchesInternalScore(List<MatchGroup> matches) {
+    Map<String, ({List<Tile> tiles, Set<String> attributes})> uniqueGroups = {};
+    for (var m in matches) {
+      List<String> ids = m.tiles.map((t) => t.id).toList()..sort();
+      String key = ids.join('|');
+      if (uniqueGroups.containsKey(key)) {
+        uniqueGroups[key]!.attributes.add(m.attribute);
+      } else {
+        uniqueGroups[key] = (tiles: m.tiles, attributes: {m.attribute});
+      }
+    }
+
+    int totalScore = 0;
+    uniqueGroups.forEach((key, data) {
+      int sum = data.tiles.fold(0, (sum, t) => sum + t.value);
+      int mult = 0;
+      if (data.attributes.contains('color')) mult += 1;
+      if (data.attributes.contains('value')) mult += 2;
+      if (data.attributes.contains('letter')) mult += 3;
+      totalScore += sum * mult;
+    });
+    return totalScore;
   }
 
   Future<void> swapTiles(Tile t1, Tile t2) async {
@@ -227,7 +264,7 @@ class GameState extends ChangeNotifier {
       notifyListeners();
       await Future.delayed(const Duration(milliseconds: 300));
 
-      List<List<Tile>> matches = findMatches(activeTiles: [newT1, newT2]);
+      List<MatchGroup> matches = findMatchesInternal(activeTiles: [newT1, newT2]);
       if (matches.isEmpty) {
         // Swap back
         tiles[idx1] = t1;
@@ -239,7 +276,7 @@ class GameState extends ChangeNotifier {
         isMatching = false;
         notifyListeners();
       } else {
-        int moveScore = calculateMatchesScore(matches);
+        int moveScore = calculateMatchesInternalScore(matches);
         lastMoveScore = moveScore;
         previousOptimumScore = optimumScore;
         sessionUserScore += moveScore;
@@ -251,14 +288,14 @@ class GameState extends ChangeNotifier {
 
         if (isSnapshotMode) {
           isPausedForSnapshot = true;
-          currentMatches = matches;
+          currentMatches = matches.map((m) => m.tiles).toList();
           userMatchTiles = [];
           for (var match in matches) {
-            userMatchTiles.addAll(match);
+            userMatchTiles.addAll(match.tiles);
           }
           notifyListeners();
         } else {
-          await processMatches(matches);
+          await processMatches(matches.map((m) => m.tiles).toList());
         }
       }
     }
@@ -350,16 +387,16 @@ class GameState extends ChangeNotifier {
     tempTiles[idx1] = newT1;
     tempTiles[idx2] = newT2;
 
-    List<List<Tile>> matches = findMatches(customTiles: tempTiles, activeTiles: [newT1, newT2]);
+    List<MatchGroup> matches = findMatchesInternal(customTiles: tempTiles, activeTiles: [newT1, newT2]);
     if (matches.isEmpty) return (score: 0, matchedTiles: [], swapTiles: []);
 
     List<Tile> allMatchTiles = [];
     for (var m in matches) {
-      allMatchTiles.addAll(m);
+      allMatchTiles.addAll(m.tiles);
     }
 
     return (
-      score: calculateMatchesScore(matches), 
+      score: calculateMatchesInternalScore(matches), 
       matchedTiles: allMatchTiles, 
       swapTiles: [t1, t2]
     );
