@@ -96,7 +96,6 @@ class GameState extends ChangeNotifier {
   List<List<Tile>> findMatches({List<Tile>? customTiles, List<Tile>? activeTiles}) {
     final boardTiles = customTiles ?? tiles;
     List<List<Tile>> allMatches = [];
-    Set<String> visited = {}; // Use keys to prevent redundant matches in one scan
 
     Tile? getTile(int r, int c) {
       if (r < 0 || r >= rows || c < 0 || c >= cols) return null;
@@ -107,55 +106,59 @@ class GameState extends ChangeNotifier {
       }
     }
 
-    final List<Point<int>> directions = [
-      const Point(0, 1),
-      const Point(1, 0),
-      const Point(1, 1),
-      const Point(1, -1),
+    final directions = [
+      const Point(0, 1),  // Horizontal
+      const Point(1, 0),  // Vertical
+      const Point(1, 1),  // Diagonal \
+      const Point(1, -1), // Diagonal /
     ];
 
-    for (int r = 0; r < rows; r++) {
-      for (int c = 0; c < cols; c++) {
-        for (var dir in directions) {
-          String startKey = '$r,$c,${dir.x},${dir.y}';
-          if (visited.contains(startKey)) continue;
+    for (var dir in directions) {
+      Set<String> visitedInDir = {};
+      for (int r = 0; r < rows; r++) {
+        for (int c = 0; c < cols; c++) {
+          if (visitedInDir.contains('$r,$c')) continue;
 
-          Tile? t1 = getTile(r, c);
-          Tile? t2 = getTile(r + dir.x, c + dir.y);
-          Tile? t3 = getTile(r + 2 * dir.x, c + 2 * dir.y);
+          Tile? startTile = getTile(r, c);
+          if (startTile == null) continue;
 
-          if (t1 == null || t2 == null || t3 == null) continue;
+          // Find the longest group in this direction where ALL tiles share 
+          // AT LEAST ONE common attribute across the whole group.
+          List<Tile>? bestGroup;
 
-          bool matchColor = t1.color == t2.color && t1.color == t3.color;
-          bool matchLetter = t1.letter == t2.letter && t1.letter == t3.letter;
-          bool matchBadge = t1.value == t2.value && t1.value == t3.value;
-
-          if (matchColor || matchLetter || matchBadge) {
-            List<Tile> match = [t1, t2, t3];
-            int offset = 3;
+          for (var attr in ['color', 'letter', 'value']) {
+            List<Tile> currentGroup = [startTile];
+            int offset = 1;
             while (true) {
               Tile? nextT = getTile(r + offset * dir.x, c + offset * dir.y);
               if (nextT == null) break;
 
-              bool stillMatch = false;
-              if (matchColor && nextT.color == t1.color) stillMatch = true;
-              if (matchLetter && nextT.letter == t1.letter) stillMatch = true;
-              if (matchBadge && nextT.value == t1.value) stillMatch = true;
+              bool match = false;
+              if (attr == 'color' && nextT.color == startTile.color) match = true;
+              if (attr == 'letter' && nextT.letter == startTile.letter) match = true;
+              if (attr == 'value' && nextT.value == startTile.value) match = true;
 
-              if (stillMatch) {
-                match.add(nextT);
+              if (match) {
+                currentGroup.add(nextT);
                 offset++;
               } else {
                 break;
               }
             }
-            
-            // Mark these tiles as visited for this direction to avoid overlapping subsets
-            for (var tile in match) {
-              visited.add('${tile.row},${tile.col},${dir.x},${dir.y}');
+
+            if (currentGroup.length >= 3) {
+              if (bestGroup == null || currentGroup.length > bestGroup.length) {
+                bestGroup = currentGroup;
+              }
             }
-            
-            allMatches.add(match);
+          }
+
+          if (bestGroup != null) {
+            allMatches.add(bestGroup);
+            // Mark ALL members as visited for THIS direction to prevent sub-groups.
+            for (var m in bestGroup) {
+              visitedInDir.add('${m.row},${m.col}');
+            }
           }
         }
       }
@@ -163,6 +166,7 @@ class GameState extends ChangeNotifier {
 
     if (activeTiles == null) return allMatches;
 
+    // Filter to groups intersecting with flipped coins
     List<List<Tile>> filteredMatches = [];
     Set<String> activeIds = activeTiles.map((t) => t.id).toSet();
     
@@ -180,24 +184,21 @@ class GameState extends ChangeNotifier {
     for (var match in matches) {
       int sumBadges = match.fold(0, (sum, tile) => sum + tile.value);
       
-      bool allSameColor = true;
-      bool allSameLetter = true;
-      bool allSameBadge = true;
+      // Determine attributes shared by ALL tiles in the group
+      bool sameColor = true;
+      bool sameLetter = true;
+      bool sameValue = true;
 
-      Color firstColor = match[0].color;
-      String firstLetter = match[0].letter;
-      int firstBadge = match[0].value;
-
-      for (var tile in match) {
-        if (tile.color != firstColor) allSameColor = false;
-        if (tile.letter != firstLetter) allSameLetter = false;
-        if (tile.value != firstBadge) allSameBadge = false;
+      for (int i = 1; i < match.length; i++) {
+        if (match[i].color != match[0].color) sameColor = false;
+        if (match[i].letter != match[0].letter) sameLetter = false;
+        if (match[i].value != match[0].value) sameValue = false;
       }
 
       int multiplier = 0;
-      if (allSameColor) multiplier++;
-      if (allSameLetter) multiplier++;
-      if (allSameBadge) multiplier++;
+      if (sameColor) multiplier++;
+      if (sameLetter) multiplier++;
+      if (sameValue) multiplier++;
 
       totalMoveScore += sumBadges * multiplier;
     }
@@ -231,23 +232,16 @@ class GameState extends ChangeNotifier {
         // Swap back
         tiles[idx1] = t1;
         tiles[idx2] = t2;
-        
-        // False move penalty
         if (totalScore > 0) totalScore -= 1;
         lastMoveScore = -1;
-        
-        // Track quality for false move
         sessionUserScore -= 1;
         sessionOptimumScore += optimumScore;
-        
         isMatching = false;
         notifyListeners();
       } else {
         int moveScore = calculateMatchesScore(matches);
         lastMoveScore = moveScore;
-        previousOptimumScore = optimumScore; // Capture before move
-        
-        // Track quality for successful move
+        previousOptimumScore = optimumScore;
         sessionUserScore += moveScore;
         sessionOptimumScore += optimumScore;
         
@@ -281,14 +275,17 @@ class GameState extends ChangeNotifier {
     int score = calculateMatchesScore(matches);
     totalScore += score;
     
-    Set<Tile> toRemove = {};
+    Set<String> toRemoveIds = {};
     for (var match in matches) {
-      toRemove.addAll(match);
+      for (var t in match) {
+        toRemoveIds.add(t.id);
+      }
     }
     
-    List<Point<int>> refillPositions = toRemove.map((t) => Point(t.row, t.col)).toList();
+    List<Tile> toRemoveTiles = tiles.where((t) => toRemoveIds.contains(t.id)).toList();
+    List<Point<int>> refillPositions = toRemoveTiles.map((t) => Point(t.row, t.col)).toList();
     
-    tiles.removeWhere((t) => toRemove.contains(t));
+    tiles.removeWhere((t) => toRemoveIds.contains(t.id));
     notifyListeners();
     await Future.delayed(const Duration(milliseconds: 300));
 
@@ -299,7 +296,6 @@ class GameState extends ChangeNotifier {
     notifyListeners();
     await Future.delayed(const Duration(milliseconds: 300));
     
-    // If we are celebrating an optimum move, wait a bit longer so user can see it
     if (showOptimumCelebration) {
       await Future.delayed(const Duration(milliseconds: 1500));
     }
