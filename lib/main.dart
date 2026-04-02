@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'presentation/screens/game_screen.dart';
 
 void main() {
-  runApp(const BadgerApp());
+  runApp(const SMatcherApp());
 }
 
-class BadgerApp extends StatelessWidget {
-  const BadgerApp({super.key});
+class SMatcherApp extends StatelessWidget {
+  const SMatcherApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Badger',
+      title: 'SMatcher',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(

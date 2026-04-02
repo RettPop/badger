@@ -1,7 +1,7 @@
-name: badger
-description: "A new Flutter project."
+name: smatcher
+description: "SMatcher - Smart Strategic Match-3 Puzzle Game."
 publish_to: 'none'
-version: 0.1.0+1
+version: 1.0.1+1
 
 environment:
   sdk: ^3.11.0
