@@ -20,6 +20,19 @@ class GameState extends ChangeNotifier {
   // Quality tracking
   double sessionUserScore = 0;
   double sessionOptimumScore = 0;
+  int sessionMoves = 0;
+  DateTime? sessionStartTime;
+
+  Duration get sessionDuration => sessionStartTime != null
+      ? DateTime.now().difference(sessionStartTime!)
+      : Duration.zero;
+
+  String get sessionDurationString {
+    final d = sessionDuration;
+    final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
 
   double get moveQuality => sessionOptimumScore > 0 ? (sessionUserScore / sessionOptimumScore) : 0;
 
@@ -68,6 +81,8 @@ class GameState extends ChangeNotifier {
     previousOptimumScore = 0;
     sessionUserScore = 0;
     sessionOptimumScore = 0;
+    sessionMoves = 0;
+    sessionStartTime = DateTime.now();
     isPausedForSnapshot = false;
     showHint = false;
     userMatchTiles.clear();
@@ -261,6 +276,7 @@ class GameState extends ChangeNotifier {
       tiles[idx1] = newT1;
       tiles[idx2] = newT2;
       
+      sessionMoves++;
       notifyListeners();
       await Future.delayed(const Duration(milliseconds: 300));
 

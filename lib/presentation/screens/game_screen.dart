@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../domain/logic/game_state.dart';
 import '../widgets/board_widget.dart';
@@ -11,6 +12,21 @@ class GameScreen extends StatefulWidget {
 
 class _GameScreenState extends State<GameScreen> {
   final GameState _gameState = GameState();
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,55 +66,83 @@ class _GameScreenState extends State<GameScreen> {
       ),
     );
   }
-Widget _buildTopBar() {
-  return Container(
-    padding: const EdgeInsets.all(16.0),
-    decoration: const BoxDecoration(
-      color: Colors.green,
-      borderRadius: BorderRadius.only(
-        bottomLeft: Radius.circular(24),
-        bottomRight: Radius.circular(24),
+
+  Widget _buildTopBar() {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      decoration: const BoxDecoration(
+        color: Colors.green,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
+        ),
       ),
-    ),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _buildInfoColumn('MOVE CREDITS', 'B', isIcon: true),
-        Column(
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                _gameState.totalScore.toString().padLeft(4, '0'),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                ),
+                'MOVES: ${_gameState.sessionMoves}  ',
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_gameState.lastMoveScore != 0)
-                    Text(
-                      'YOU: ${_gameState.lastMoveScore > 0 ? "+" : ""}${_gameState.lastMoveScore}  ',
-                      style: const TextStyle(color: Colors.white70, fontSize: 16),
-                    ),
-                  if (_gameState.previousOptimumScore > 0)
-                    Text(
-                      'BEST: +${_gameState.previousOptimumScore}',
-                      style: const TextStyle(color: Colors.blueAccent, fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'QUALITY: ${(_gameState.moveQuality * 100).toStringAsFixed(0)}%',
-                    style: const TextStyle(color: Colors.orangeAccent, fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ],
+              Text(
+                'RATIO: ${(_gameState.moveQuality * 100).toStringAsFixed(0)}%  ',
+                style: const TextStyle(
+                    color: Colors.orangeAccent,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold),
+              ),
+              Text(
+                'TIME: ${_gameState.sessionDurationString}',
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
               ),
             ],
           ),
-          GestureDetector(
-            onTap: () => _gameState.toggleHint(),
-            child: _buildInfoColumn('OPTIMUM SCORE', _gameState.optimumScore.toString()),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildInfoColumn('MOVE CREDITS', 'B', isIcon: true),
+              Column(
+                children: [
+                  Text(
+                    _gameState.totalScore.toString().padLeft(4, '0'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 48,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_gameState.lastMoveScore != 0)
+                        Text(
+                          'LAST:${_gameState.lastMoveScore > 0 ? "+" : ""}${_gameState.lastMoveScore} ',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      if (_gameState.previousOptimumScore > 0)
+                        Text(
+                          '(OPTIMUM:+${_gameState.previousOptimumScore})',
+                          style: const TextStyle(
+                              color: Colors.blueAccent,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+              GestureDetector(
+                onTap: () => _gameState.toggleHint(),
+                child: _buildInfoColumn(
+                    'OPTIMUM', _gameState.optimumScore.toString()),
+              ),
+            ],
           ),
         ],
       ),
@@ -108,15 +152,6 @@ Widget _buildTopBar() {
   Widget _buildInfoColumn(String label, String value, {bool isIcon = false}) {
     return Column(
       children: [
-        SizedBox(
-          width: 80,
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white, fontSize: 10),
-          ),
-        ),
-        const SizedBox(height: 4),
         Container(
           width: 50,
           height: 50,
@@ -127,7 +162,8 @@ Widget _buildTopBar() {
           ),
           child: Center(
             child: isIcon
-                ? const Icon(Icons.monetization_on, color: Colors.orange, size: 30)
+                ? const Icon(Icons.monetization_on,
+                    color: Colors.orange, size: 30)
                 : Text(
                     value,
                     style: const TextStyle(
@@ -136,6 +172,15 @@ Widget _buildTopBar() {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        SizedBox(
+          width: 80,
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white, fontSize: 10),
           ),
         ),
       ],
@@ -155,7 +200,8 @@ Widget _buildTopBar() {
           IconButton(
             icon: Icon(
               _gameState.isSnapshotMode ? Icons.camera : Icons.camera_outlined,
-              color: _gameState.isSnapshotMode ? Colors.blueAccent : Colors.white70,
+              color:
+                  _gameState.isSnapshotMode ? Colors.blueAccent : Colors.white70,
               size: 40,
             ),
             onPressed: () => _gameState.toggleSnapshotMode(),
@@ -163,10 +209,14 @@ Widget _buildTopBar() {
           IconButton(
             icon: Icon(
               Icons.play_arrow,
-              color: _gameState.isPausedForSnapshot ? Colors.greenAccent : Colors.white24,
+              color: _gameState.isPausedForSnapshot
+                  ? Colors.greenAccent
+                  : Colors.white24,
               size: 40,
             ),
-            onPressed: _gameState.isPausedForSnapshot ? () => _gameState.continueFromSnapshot() : null,
+            onPressed: _gameState.isPausedForSnapshot
+                ? () => _gameState.continueFromSnapshot()
+                : null,
           ),
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white70, size: 40),
