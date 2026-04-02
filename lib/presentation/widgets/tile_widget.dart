@@ -97,8 +97,9 @@ class TileWidget extends StatelessWidget {
                     '${tile.value}',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: badgeDiameter * 0.6,
+                      fontSize: badgeDiameter * 0.75,
                       fontWeight: FontWeight.bold,
+                      height: 1.0,
                     ),
                   ),
                 ),
