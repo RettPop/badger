@@ -36,7 +36,14 @@ class ModeSelectionDialog extends StatelessWidget {
       contentPadding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       content: Column(
         mainAxisSize: MainAxisSize.min,
-        children: GameModeType.values.map((mode) {
+        children: const [
+          GameModeType.convenient,
+          GameModeType.arcade,
+          GameModeType.highScores,
+          GameModeType.dropDown,
+          GameModeType.simpleDrag,
+          GameModeType.snakeDrag,
+        ].map((mode) {
           final bool isActive = mode == gameState.currentMode;
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
