@@ -236,7 +236,7 @@ class _GameScreenState extends State<GameScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
-              _gameState.initializeBoard(deductScore: true);
+              _gameState.initializeBoard(deductScore: true, resetSession: false);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,

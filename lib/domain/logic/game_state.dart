@@ -74,18 +74,22 @@ class GameState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void initializeBoard({bool deductScore = false}) {
+  void initializeBoard({bool deductScore = false, bool resetSession = true}) {
     if (deductScore) {
       totalScore = max(0, totalScore - optimumScore);
     }
     tiles.clear();
-    lastMoveScore = 0;
-    optimumScore = 0;
-    previousOptimumScore = 0;
-    sessionUserScore = 0;
-    sessionOptimumScore = 0;
-    sessionMoves = 0;
-    sessionStartTime = DateTime.now();
+    
+    if (resetSession) {
+      lastMoveScore = 0;
+      optimumScore = 0;
+      previousOptimumScore = 0;
+      sessionUserScore = 0;
+      sessionOptimumScore = 0;
+      sessionMoves = 0;
+      sessionStartTime = DateTime.now();
+    }
+    
     isPausedForSnapshot = false;
     showHint = false;
     userMatchTiles.clear();
