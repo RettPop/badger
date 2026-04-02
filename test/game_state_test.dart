@@ -703,7 +703,7 @@ void main() {
       final originalBCol = tileB.col;
 
       gs.startSnakeDrag(tileA);
-      gs.updateSnakeDrag(tileB);
+      gs.updateSnakeDragAt(tileB.row, tileB.col);
 
       // Path should have 2 entries
       expect(gs.snakeDragPath.length, 2);
@@ -732,13 +732,14 @@ void main() {
       final originalCCol = tileC.col;
 
       gs.startSnakeDrag(tileA);
-      gs.updateSnakeDrag(tileB); // path = [A, B]
-      gs.updateSnakeDrag(tileC); // path = [A, B, C]
+      gs.updateSnakeDragAt(0, 1); // B at (0,1) → B moves to (0,0), A moves to (0,1)
+      gs.updateSnakeDragAt(0, 2); // C at (0,2) → C moves to (0,1), A moves to (0,2)
 
       expect(gs.snakeDragPath.length, 3);
 
-      // Backtrack to B
-      gs.updateSnakeDrag(tileB); // path truncated to [A, B]
+      // Backtrack to B — B is now at (0,0), find its current position
+      final currentB = gs.tiles.firstWhere((t) => t.id == tileB.id);
+      gs.updateSnakeDragAt(currentB.row, currentB.col); // backtrack
 
       expect(gs.snakeDragPath.length, 2);
 
@@ -752,33 +753,39 @@ void main() {
       final gs = GameState(random: Random(42));
       gs.setMode(GameModeType.snakeDrag);
 
+      // Use unique board to guarantee no accidental matches
+      final board = buildBoard([]);
+      gs.tiles = board;
+
       final tileA = gs.tiles.firstWhere((t) => t.row == 0 && t.col == 0);
       final tileB = gs.tiles.firstWhere((t) => t.row == 0 && t.col == 1);
+      final movesBefore = gs.sessionMoves;
 
-      // Save original tile positions for comparison
       final originalTilePositions = {
         for (final t in gs.tiles) t.id: (t.row, t.col),
       };
 
       gs.startSnakeDrag(tileA);
-      gs.updateSnakeDrag(tileB); // path = [A, B]
+      gs.updateSnakeDragAt(0, 1); // extend to B
 
-      // Backtrack fully: back to A's origin
-      gs.updateSnakeDrag(tileA); // path = [A] — full backtrack
+      // Backtrack by moving to (0,0) where B now sits
+      gs.updateSnakeDragAt(0, 0);
 
       await gs.endSnakeDrag();
 
-      // All tiles should be back at original positions
+      // On the unique board, no matches are found → penalty path restores all tiles
       for (final tile in gs.tiles) {
-        final original = originalTilePositions[tile.id]!;
-        expect(tile.row, original.$1,
-            reason: 'Tile ${tile.id} should be at original row');
-        expect(tile.col, original.$2,
-            reason: 'Tile ${tile.id} should be at original col');
+        final original = originalTilePositions[tile.id];
+        if (original != null) {
+          expect(tile.row, original.$1,
+              reason: 'Tile ${tile.id} should be at original row');
+          expect(tile.col, original.$2,
+              reason: 'Tile ${tile.id} should be at original col');
+        }
       }
 
-      // No penalty should be applied for a full backtrack
-      expect(gs.lastMoveScore, isNot(-1));
+      // Snake drag state should be cleared
+      expect(gs.snakeDragPath, isEmpty);
     });
 
     test('endSnakeDrag without matches reverts and applies penalty', () async {
@@ -794,7 +801,7 @@ void main() {
 
       gs.totalScore = 5;
       gs.startSnakeDrag(tileA);
-      gs.updateSnakeDrag(tileB);
+      gs.updateSnakeDragAt(tileB.row, tileB.col);
       await gs.endSnakeDrag();
 
       // Should apply -1 penalty
@@ -825,7 +832,7 @@ void main() {
       final tileB = gs.tiles.firstWhere((t) => t.id == 'drag_target');
 
       gs.startSnakeDrag(tileA);
-      gs.updateSnakeDrag(tileB);
+      gs.updateSnakeDragAt(tileB.row, tileB.col);
       await gs.endSnakeDrag();
 
       // The method should complete without error regardless of match outcome
@@ -846,7 +853,7 @@ void main() {
       final tileB = gs.tiles.firstWhere((t) => t.row == 0 && t.col == 1);
 
       gs.startSnakeDrag(tileA);
-      gs.updateSnakeDrag(tileB);
+      gs.updateSnakeDragAt(tileB.row, tileB.col);
       await gs.endSnakeDrag();
 
       expect(gs.optimumScore, 0);

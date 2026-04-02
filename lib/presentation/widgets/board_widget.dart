@@ -18,42 +18,40 @@ class _BoardWidgetState extends State<BoardWidget> {
 
   // Drag state
   Tile? _draggedTile;
-  Offset? _dragOffset; // current finger position relative to the board stack
+  Offset _dragDelta = Offset.zero;
   Tile? _dragTarget;
   Tile? _lastSnakeHoveredTile;
+  bool _isDragging = false;
+  Offset? _pointerDownPos;
+  Tile? _pointerDownTile;
+  // Original grid position of the dragged tile (for snake drag, stays fixed)
+  int _dragOriginRow = 0;
+  int _dragOriginCol = 0;
 
-  // Layout cache (set during build for use in gesture handlers)
+  // Layout cache
   double _coinSize = 0;
   double _spacing = 0;
   double _padding = 0;
-  GlobalKey _boardKey = GlobalKey();
 
-  /// Converts a local position within the board's Stack to the Tile at that
-  /// grid cell, or null if the position is outside the grid.
+  static const double _dragThreshold = 8.0; // pixels before we consider it a drag
+
   Tile? _tileAtPosition(Offset localPosition) {
-    final coinSize = _coinSize;
-    final spacing = _spacing;
-    final padding = _padding;
-
-    // Adjust for padding
-    final double x = localPosition.dx - padding;
-    final double y = localPosition.dy - padding;
+    final double x = localPosition.dx - _padding;
+    final double y = localPosition.dy - _padding;
 
     if (x < 0 || y < 0) return null;
 
-    final double cellSize = coinSize + spacing;
+    final double cellSize = _coinSize + _spacing;
     final int col = (x / cellSize).floor();
     final int row = (y / cellSize).floor();
 
     if (col < 0 || col >= widget.gameState.cols) return null;
     if (row < 0 || row >= widget.gameState.rows) return null;
 
-    // Check that the position is within the tile area (not in the spacing gap)
     final double xInCell = x - col * cellSize;
     final double yInCell = y - row * cellSize;
-    if (xInCell > coinSize || yInCell > coinSize) return null;
+    if (xInCell > _coinSize || yInCell > _coinSize) return null;
 
-    // Find the tile at this grid position
     try {
       return widget.gameState.tiles.firstWhere(
         (t) => t.row == row && t.col == col,
@@ -68,109 +66,156 @@ class _BoardWidgetState extends State<BoardWidget> {
            (a.col == b.col && (a.row - b.row).abs() == 1);
   }
 
-  void _handleTileTap(Tile tile) {
+  void _handleTap(Tile tile) {
     if (widget.gameState.isMatching || widget.gameState.isPausedForSnapshot) return;
-
-    // Disable tap in snake drag mode
     if (widget.gameState.currentMode.isSnakeDrag) return;
 
     if (_selectedTile == null) {
-      setState(() {
-        _selectedTile = tile;
-      });
+      setState(() => _selectedTile = tile);
     } else {
-      if (_selectedTile == tile) {
-        setState(() {
-          _selectedTile = null;
-        });
+      if (_selectedTile!.id == tile.id) {
+        setState(() => _selectedTile = null);
       } else {
-        // Tap-to-select always uses adjacent swap (swapTiles)
         widget.gameState.swapTiles(_selectedTile!, tile);
-        setState(() {
-          _selectedTile = null;
-        });
+        setState(() => _selectedTile = null);
       }
     }
   }
 
-  void _handlePanStart(Tile tile, DragStartDetails details) {
+  void _onPointerDown(PointerDownEvent event) {
     if (widget.gameState.isMatching || widget.gameState.isPausedForSnapshot) return;
 
-    setState(() {
-      _selectedTile = null; // Clear tap selection when drag starts
-      _draggedTile = tile;
-      _dragOffset = details.localPosition;
-      _dragTarget = null;
-      _lastSnakeHoveredTile = null;
-    });
+    final tile = _tileAtPosition(event.localPosition);
+    if (tile == null) return;
 
-    // For snake drag mode, notify GameState
-    if (widget.gameState.currentMode.isSnakeDrag) {
-      widget.gameState.startSnakeDrag(tile);
-    }
+    _pointerDownPos = event.localPosition;
+    _pointerDownTile = tile;
+    _isDragging = false;
   }
 
-  void _handlePanUpdate(DragUpdateDetails details, double boardWidth, double boardHeight) {
-    if (_draggedTile == null) return;
+  void _onPointerMove(PointerMoveEvent event) {
+    if (_pointerDownTile == null) return;
 
-    setState(() {
-      _dragOffset = (_dragOffset ?? Offset.zero) + details.delta;
-    });
+    if (!_isDragging) {
+      // Check if we've moved enough to start a drag
+      final delta = event.localPosition - _pointerDownPos!;
+      if (delta.distance < _dragThreshold) return;
 
-    // Convert the drag offset to board-local coordinates
-    // _dragOffset is relative to the tile's original position in the board
-    final tile = _draggedTile!;
-    final tileOriginX = _padding + tile.col * (_coinSize + _spacing);
-    final tileOriginY = _padding + tile.row * (_coinSize + _spacing);
-    final fingerBoardPos = Offset(
-      tileOriginX + (_dragOffset?.dx ?? 0),
-      tileOriginY + (_dragOffset?.dy ?? 0),
-    );
+      // Start dragging
+      _isDragging = true;
+      _dragOriginRow = _pointerDownTile!.row;
+      _dragOriginCol = _pointerDownTile!.col;
+      setState(() {
+        _selectedTile = null;
+        _draggedTile = _pointerDownTile;
+        _dragDelta = delta;
+        _dragTarget = null;
+        _lastSnakeHoveredTile = null;
+      });
 
-    final hoveredTile = _tileAtPosition(fingerBoardPos);
-
-    if (widget.gameState.currentMode.isSnakeDrag) {
-      // Snake drag: continuously update path
-      if (hoveredTile != null && hoveredTile.id != (_lastSnakeHoveredTile?.id ?? _draggedTile?.id)) {
-        _lastSnakeHoveredTile = hoveredTile;
-        widget.gameState.updateSnakeDrag(hoveredTile);
+      if (widget.gameState.currentMode.isSnakeDrag) {
+        widget.gameState.startSnakeDrag(_pointerDownTile!);
       }
     } else {
-      // Regular drag: just track the target
+      // Continue dragging
+      final delta = event.localPosition - _pointerDownPos!;
       setState(() {
-        _dragTarget = hoveredTile;
+        _dragDelta = delta;
+      });
+    }
+
+    // Hit-test for hover target — use origin position (not model, which changes in snake drag)
+    final tile = _draggedTile!;
+    final cellSize = _coinSize + _spacing;
+    final tileCenterX = _padding + _dragOriginCol * cellSize + _coinSize / 2 + _dragDelta.dx;
+    final tileCenterY = _padding + _dragOriginRow * cellSize + _coinSize / 2 + _dragDelta.dy;
+    final hoveredTile = _tileAtPosition(Offset(tileCenterX, tileCenterY));
+
+    if (widget.gameState.currentMode.isSnakeDrag) {
+      // For snake drag, determine which grid cell the finger is over
+      // and let GameState handle adjacency checks
+      final x = tileCenterX - _padding;
+      final y = tileCenterY - _padding;
+      if (x >= 0 && y >= 0) {
+        final col = (x / cellSize).floor();
+        final row = (y / cellSize).floor();
+        if (col >= 0 && col < widget.gameState.cols &&
+            row >= 0 && row < widget.gameState.rows) {
+          // Only call if we've entered a new cell
+          final cellKey = '$row,$col';
+          final lastKey = _lastSnakeHoveredTile != null
+              ? '${_lastSnakeHoveredTile!.row},${_lastSnakeHoveredTile!.col}'
+              : '${_dragOriginRow},${_dragOriginCol}';
+          if (cellKey != lastKey) {
+            _lastSnakeHoveredTile = Tile(id: 'hover', row: row, col: col,
+                color: const Color(0), letter: '', value: 0);
+            widget.gameState.updateSnakeDragAt(row, col);
+          }
+        }
+      }
+    } else {
+      setState(() {
+        if (hoveredTile != null && hoveredTile.id != tile.id) {
+          if (!widget.gameState.currentMode.allowsDragToAny) {
+            _dragTarget = _isAdjacent(tile, hoveredTile) ? hoveredTile : null;
+          } else {
+            _dragTarget = hoveredTile;
+          }
+        } else {
+          _dragTarget = null;
+        }
       });
     }
   }
 
-  void _handlePanEnd(DragEndDetails details) {
-    if (_draggedTile == null) return;
+  void _onPointerUp(PointerUpEvent event) {
+    if (_pointerDownTile == null) return;
 
-    final source = _draggedTile!;
+    if (!_isDragging) {
+      // It was a tap, not a drag
+      _handleTap(_pointerDownTile!);
+    } else if (_draggedTile != null) {
+      final source = _draggedTile!;
 
-    if (widget.gameState.currentMode.isSnakeDrag) {
-      // Snake drag: end the drag in GameState
-      widget.gameState.endSnakeDrag();
-    } else if (_dragTarget != null && _dragTarget!.id != source.id) {
-      final target = _dragTarget!;
-
-      if (widget.gameState.currentMode.allowsDragToAny) {
-        // Mode 4 (Simple Drag): any-position swap
-        widget.gameState.swapTilesAny(source, target);
-      } else {
-        // Modes 1, 2, 3, 6: adjacent-only drag
-        if (_isAdjacent(source, target)) {
+      if (widget.gameState.currentMode.isSnakeDrag) {
+        widget.gameState.endSnakeDrag();
+      } else if (_dragTarget != null && _dragTarget!.id != source.id) {
+        final target = _dragTarget!;
+        if (widget.gameState.currentMode.allowsDragToAny) {
+          widget.gameState.swapTilesAny(source, target);
+        } else if (_isAdjacent(source, target)) {
           widget.gameState.swapTiles(source, target);
         }
       }
+
+      setState(() {
+        _draggedTile = null;
+        _dragDelta = Offset.zero;
+        _dragTarget = null;
+        _lastSnakeHoveredTile = null;
+      });
     }
 
-    setState(() {
-      _draggedTile = null;
-      _dragOffset = null;
-      _dragTarget = null;
-      _lastSnakeHoveredTile = null;
-    });
+    _pointerDownTile = null;
+    _pointerDownPos = null;
+    _isDragging = false;
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    if (_isDragging && _draggedTile != null) {
+      if (widget.gameState.currentMode.isSnakeDrag) {
+        widget.gameState.endSnakeDrag();
+      }
+      setState(() {
+        _draggedTile = null;
+        _dragDelta = Offset.zero;
+        _dragTarget = null;
+        _lastSnakeHoveredTile = null;
+      });
+    }
+    _pointerDownTile = null;
+    _pointerDownPos = null;
+    _isDragging = false;
   }
 
   @override
@@ -187,7 +232,6 @@ class _BoardWidgetState extends State<BoardWidget> {
         final double spacing = coinSize * 0.2;
         final double padding = coinSize * 0.2;
 
-        // Cache layout values for gesture handlers
         _coinSize = coinSize;
         _spacing = spacing;
         _padding = padding;
@@ -222,89 +266,94 @@ class _BoardWidgetState extends State<BoardWidget> {
         });
 
         return Center(
-          child: Container(
-            key: _boardKey,
-            width: boardWidth,
-            height: boardHeight,
-            decoration: BoxDecoration(
-              color: Colors.black,
-              borderRadius: BorderRadius.circular(24.0),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(150),
-                  blurRadius: 20,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: Padding(
-              padding: EdgeInsets.all(padding),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: sortedTiles.map((tile) {
-                  bool isSelected = _selectedTile?.id == tile.id;
-                  bool isDragged = _draggedTile?.id == tile.id;
-                  bool isUserMatch = userMatchTilesIntersect(tile);
-                  bool isOptimumMatch = optimumMatchTilesIntersect(tile);
-                  bool isHintSwap = optimumSwapTilesIntersect(tile) && widget.gameState.showHint;
-                  bool showOptimumBorder = (isOptimumMatch && (widget.gameState.isPausedForSnapshot || widget.gameState.showHint));
+          child: Listener(
+            onPointerDown: _onPointerDown,
+            onPointerMove: _onPointerMove,
+            onPointerUp: _onPointerUp,
+            onPointerCancel: _onPointerCancel,
+            child: Container(
+              width: boardWidth,
+              height: boardHeight,
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(24.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(150),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: EdgeInsets.all(padding),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: sortedTiles.map((tile) {
+                    bool isSelected = _selectedTile?.id == tile.id;
+                    bool isDragged = _draggedTile?.id == tile.id;
+                    bool isUserMatch = userMatchTilesIntersect(tile);
+                    bool isOptimumMatch = optimumMatchTilesIntersect(tile);
+                    bool isHintSwap = optimumSwapTilesIntersect(tile) && widget.gameState.showHint;
+                    bool showOptimumBorder = (isOptimumMatch && (widget.gameState.isPausedForSnapshot || widget.gameState.showHint));
 
-                  // Calculate position - if dragged, follow finger
-                  double left = tile.col * (coinSize + spacing);
-                  double top = tile.row * (coinSize + spacing);
+                    // Preview swap only for non-snake modes
+                    bool isDragPreviewTarget = !isDragged &&
+                        _draggedTile != null &&
+                        _dragTarget != null &&
+                        tile.id == _dragTarget!.id &&
+                        !widget.gameState.currentMode.isSnakeDrag;
 
-                  if (isDragged && _dragOffset != null) {
-                    // Position the tile at the finger position
-                    left += _dragOffset!.dx - coinSize / 2;
-                    top += _dragOffset!.dy - coinSize / 2;
-                  }
+                    double left = tile.col * (coinSize + spacing);
+                    double top = tile.row * (coinSize + spacing);
 
-                  final tileWidget = TileWidget(
-                    tile: tile,
-                    size: coinSize,
-                    isOptimum: showOptimumBorder && !isHintSwap,
-                    isHintSwap: isHintSwap,
-                  );
+                    if (isDragged) {
+                      // Use origin position + delta so the tile doesn't jump
+                      // when its model row/col changes (e.g., in snake drag)
+                      left = _dragOriginCol * (coinSize + spacing) + _dragDelta.dx;
+                      top = _dragOriginRow * (coinSize + spacing) + _dragDelta.dy;
+                    } else if (isDragPreviewTarget) {
+                      left = _draggedTile!.col * (coinSize + spacing);
+                      top = _draggedTile!.row * (coinSize + spacing);
+                    }
 
-                  final wrappedTile = GestureDetector(
-                    onTap: () => _handleTileTap(tile),
-                    onPanStart: (details) => _handlePanStart(tile, details),
-                    onPanUpdate: (details) => _handlePanUpdate(details, boardWidth, boardHeight),
-                    onPanEnd: _handlePanEnd,
-                    child: tileWidget,
-                  );
+                    final tileWidget = TileWidget(
+                      tile: tile,
+                      size: coinSize,
+                      isOptimum: showOptimumBorder && !isHintSwap,
+                      isHintSwap: isHintSwap,
+                    );
 
-                  if (isDragged && _dragOffset != null) {
-                    // Dragged tile: use Positioned (no animation) to follow finger
-                    return Positioned(
+                    if (isDragged) {
+                      return Positioned(
+                        key: ValueKey(tile.id),
+                        left: left,
+                        top: top,
+                        width: coinSize,
+                        height: coinSize,
+                        child: Transform.scale(
+                          scale: 1.15,
+                          child: tileWidget,
+                        ),
+                      );
+                    }
+
+                    return AnimatedPositioned(
                       key: ValueKey(tile.id),
+                      duration: Duration(milliseconds: isDragPreviewTarget ? 150 : 300),
+                      curve: Curves.easeInOut,
                       left: left,
                       top: top,
                       width: coinSize,
                       height: coinSize,
                       child: AnimatedScale(
-                        scale: 1.15,
-                        duration: const Duration(milliseconds: 100),
-                        child: wrappedTile,
+                        scale: isUserMatch ? 1.2 : (isSelected ? 1.1 : 1.0),
+                        duration: const Duration(milliseconds: 200),
+                        child: tileWidget,
                       ),
                     );
-                  }
-
-                  return AnimatedPositioned(
-                    key: ValueKey(tile.id),
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                    left: left,
-                    top: top,
-                    width: coinSize,
-                    height: coinSize,
-                    child: AnimatedScale(
-                      scale: isUserMatch ? 1.2 : (isSelected ? 1.1 : 1.0),
-                      duration: const Duration(milliseconds: 200),
-                      child: wrappedTile,
-                    ),
-                  );
-                }).toList(),
+                  }).toList(),
+                ),
               ),
             ),
           ),

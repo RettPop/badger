@@ -466,58 +466,67 @@ class GameState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Mode 5: Update snake drag as finger moves over tiles
-  void updateSnakeDrag(Tile hoveredTile) {
+  /// Mode 5: Update snake drag when the finger enters a new grid cell.
+  /// Called with the row/col of the cell the finger is currently over.
+  void updateSnakeDragAt(int row, int col) {
     if (snakeDragPath.isEmpty || snakeDragOrigin == null) return;
 
-    // Check if hoveredTile is already in the path (backtrack)
+    // Find the tile currently at this grid cell
+    final hoveredIdx = tiles.indexWhere((t) => t.row == row && t.col == col);
+    if (hoveredIdx < 0) return;
+    final Tile hoveredTile = tiles[hoveredIdx];
+
+    // Ignore if it's the dragged tile itself (finger still on same cell)
+    if (hoveredTile.id == snakeDragOrigin!.id) return;
+
+    // Check if hoveredTile is already in the path (backtrack — always allowed)
     int existingIndex = snakeDragPath.indexWhere((t) => t.id == hoveredTile.id);
 
+    if (existingIndex < 0) {
+      // For extending: only allow if adjacent to dragged tile's current model position
+      Tile draggedTile = tiles.firstWhere((t) => t.id == snakeDragOrigin!.id);
+      bool adjacent = (draggedTile.row == row && (draggedTile.col - col).abs() == 1) ||
+                      (draggedTile.col == col && (draggedTile.row - row).abs() == 1);
+      if (!adjacent) return;
+    }
+
     if (existingIndex >= 0) {
-      // Backtrack: restore all tiles beyond existingIndex to their original positions
+      // Backtrack: hovering over a tile already in the path. Restore all tiles
+      // AFTER existingIndex to their original positions. The hovered tile stays.
       for (int i = snakeDragPath.length - 1; i > existingIndex; i--) {
         Tile pathTile = snakeDragPath[i];
-        // Find the original position for this tile
         Tile originalTile = snakeDragOriginalTiles.firstWhere((t) => t.id == pathTile.id);
         int boardIdx = tiles.indexWhere((t) => t.id == pathTile.id);
         if (boardIdx >= 0) {
-          tiles[boardIdx] = pathTile.copyWith(row: originalTile.row, col: originalTile.col);
+          tiles[boardIdx] = tiles[boardIdx].copyWith(row: originalTile.row, col: originalTile.col);
         }
       }
-      // Also restore the dragged tile to the position of the tile at existingIndex
-      if (existingIndex == 0) {
-        // Full backtrack to origin
-        Tile originalOrigin = snakeDragOriginalTiles.firstWhere((t) => t.id == snakeDragOrigin!.id);
-        int originIdx = tiles.indexWhere((t) => t.id == snakeDragOrigin!.id);
-        if (originIdx >= 0) {
-          tiles[originIdx] = tiles[originIdx].copyWith(row: originalOrigin.row, col: originalOrigin.col);
-        }
-      } else {
-        // Partial backtrack: dragged tile goes back to the position of the tile at existingIndex
-        Tile tileAtIndex = snakeDragPath[existingIndex];
-        Tile originalAtIndex = snakeDragOriginalTiles.firstWhere((t) => t.id == tileAtIndex.id);
-        int originIdx = tiles.indexWhere((t) => t.id == snakeDragOrigin!.id);
-        if (originIdx >= 0) {
-          tiles[originIdx] = tiles[originIdx].copyWith(row: originalAtIndex.row, col: originalAtIndex.col);
-        }
+      // Restore dragged tile: it goes to the original position of the hovered tile
+      // (which is where it was when the hovered tile was first added to the path)
+      int draggedIdx = tiles.indexWhere((t) => t.id == snakeDragOrigin!.id);
+      Tile hoveredOriginal = snakeDragOriginalTiles.firstWhere((t) => t.id == hoveredTile.id);
+      if (draggedIdx >= 0) {
+        tiles[draggedIdx] = tiles[draggedIdx].copyWith(row: hoveredOriginal.row, col: hoveredOriginal.col);
       }
       snakeDragPath = snakeDragPath.sublist(0, existingIndex + 1);
     } else {
-      // Extend path: hoveredTile shifts into dragged tile's current position
+      // Extend path: hoveredTile shifts to dragged tile's current position,
+      // dragged tile takes hoveredTile's former position
       int draggedIdx = tiles.indexWhere((t) => t.id == snakeDragOrigin!.id);
       int hoveredIdx = tiles.indexWhere((t) => t.id == hoveredTile.id);
 
       if (draggedIdx < 0 || hoveredIdx < 0) return;
 
-      Tile draggedTile = tiles[draggedIdx];
-      Tile currentHovered = tiles[hoveredIdx];
+      int hoveredRow = tiles[hoveredIdx].row;
+      int hoveredCol = tiles[hoveredIdx].col;
+      int dragRow = tiles[draggedIdx].row;
+      int dragCol = tiles[draggedIdx].col;
 
-      // hoveredTile shifts to where dragged tile currently is
-      tiles[hoveredIdx] = currentHovered.copyWith(row: draggedTile.row, col: draggedTile.col);
-      // dragged tile takes hoveredTile's former position
-      tiles[draggedIdx] = draggedTile.copyWith(row: currentHovered.row, col: currentHovered.col);
+      // Hovered tile moves to where dragged tile is
+      tiles[hoveredIdx] = tiles[hoveredIdx].copyWith(row: dragRow, col: dragCol);
+      // Dragged tile moves to where hovered tile was
+      tiles[draggedIdx] = tiles[draggedIdx].copyWith(row: hoveredRow, col: hoveredCol);
 
-      // Update the path entry for the hovered tile to its new position
       snakeDragPath.add(tiles[hoveredIdx]);
     }
 
@@ -635,7 +644,10 @@ class GameState extends ChangeNotifier {
     await Future.delayed(const Duration(milliseconds: 300));
 
     if (currentMode.usesGravity) {
-      _applyGravityFill();
+      _applyGravityDrop();
+      notifyListeners();
+      await Future.delayed(const Duration(milliseconds: 500));
+      _fillEmptyPositions();
     } else if (currentMode.highScoreGeneration) {
       _generateTilesWithHighScoreConstraint(refillPositions);
     } else {
@@ -658,27 +670,23 @@ class GameState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Mode 3: Apply gravity fill after removing matched tiles
-  void _applyGravityFill() {
-    // Step 1: Identify all empty positions
-    Set<String> occupiedPositions = {};
+  /// Mode 3 phase 1: Drop existing tiles down within their columns
+  void _applyGravityDrop() {
+    Set<String> occupied = {};
     for (var tile in tiles) {
-      occupiedPositions.add('${tile.row},${tile.col}');
+      occupied.add('${tile.row},${tile.col}');
     }
 
-    // Step 2: Column drop - for each column, bottom to top
     for (int c = 0; c < cols; c++) {
       for (int r = rows - 1; r >= 0; r--) {
-        if (!occupiedPositions.contains('$r,$c')) {
-          // Empty cell - find nearest tile above
+        if (!occupied.contains('$r,$c')) {
           for (int above = r - 1; above >= 0; above--) {
-            if (occupiedPositions.contains('$above,$c')) {
-              // Move this tile down
-              int tileIdx = tiles.indexWhere((t) => t.row == above && t.col == c);
-              if (tileIdx >= 0) {
-                occupiedPositions.remove('$above,$c');
-                occupiedPositions.add('$r,$c');
-                tiles[tileIdx] = tiles[tileIdx].copyWith(row: r, col: c);
+            if (occupied.contains('$above,$c')) {
+              int idx = tiles.indexWhere((t) => t.row == above && t.col == c);
+              if (idx >= 0) {
+                occupied.remove('$above,$c');
+                occupied.add('$r,$c');
+                tiles[idx] = tiles[idx].copyWith(row: r, col: c);
                 break;
               }
             }
@@ -686,67 +694,18 @@ class GameState extends ChangeNotifier {
         }
       }
     }
+  }
 
-    // Step 3: Lateral fill - find remaining empty cells and fill from closest tiles
-    bool moved = true;
-    while (moved) {
-      moved = false;
-
-      // Recalculate occupied positions
-      occupiedPositions.clear();
-      for (var tile in tiles) {
-        occupiedPositions.add('${tile.row},${tile.col}');
-      }
-
-      // Find all empty positions
-      List<Point<int>> emptyPositions = [];
-      for (int r = 0; r < rows; r++) {
-        for (int c = 0; c < cols; c++) {
-          if (!occupiedPositions.contains('$r,$c')) {
-            emptyPositions.add(Point(r, c));
-          }
-        }
-      }
-
-      if (emptyPositions.isEmpty) break;
-
-      for (var emptyPos in emptyPositions) {
-        // Find closest filled tile by Manhattan distance
-        int minDist = rows + cols + 1; // larger than any possible distance
-        List<int> candidates = [];
-
-        for (int i = 0; i < tiles.length; i++) {
-          int dist = (tiles[i].row - emptyPos.x).abs() + (tiles[i].col - emptyPos.y).abs();
-          if (dist < minDist) {
-            minDist = dist;
-            candidates = [i];
-          } else if (dist == minDist) {
-            candidates.add(i);
-          }
-        }
-
-        if (candidates.isNotEmpty && minDist > 0) {
-          // Random tie-break
-          int chosenIdx = candidates[_random.nextInt(candidates.length)];
-          Tile chosenTile = tiles[chosenIdx];
-
-          // Only move if this won't leave a gap that's worse
-          tiles[chosenIdx] = chosenTile.copyWith(row: emptyPos.x, col: emptyPos.y);
-          moved = true;
-          break; // Restart the loop after each move to recalculate
-        }
-      }
-    }
-
-    // Step 4: Generate new tiles for any remaining empty positions
-    occupiedPositions.clear();
+  /// Mode 3 phase 2: Fill remaining empty positions with new random tiles
+  void _fillEmptyPositions() {
+    Set<String> occupied = {};
     for (var tile in tiles) {
-      occupiedPositions.add('${tile.row},${tile.col}');
+      occupied.add('${tile.row},${tile.col}');
     }
 
     for (int r = 0; r < rows; r++) {
       for (int c = 0; c < cols; c++) {
-        if (!occupiedPositions.contains('$r,$c')) {
+        if (!occupied.contains('$r,$c')) {
           tiles.add(_generateRandomTile(r, c));
         }
       }
