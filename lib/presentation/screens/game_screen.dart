@@ -1,7 +1,8 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../domain/logic/game_state.dart';
+import '../../domain/models/game_mode.dart';
 import '../widgets/board_widget.dart';
+import '../widgets/mode_selection_dialog.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -12,21 +13,6 @@ class GameScreen extends StatefulWidget {
 
 class _GameScreenState extends State<GameScreen> {
   final GameState _gameState = GameState();
-  Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,92 +52,97 @@ class _GameScreenState extends State<GameScreen> {
       ),
     );
   }
-
-  Widget _buildTopBar() {
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      decoration: const BoxDecoration(
-        color: Colors.green,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
-        ),
+Widget _buildTopBar() {
+  return Container(
+    padding: const EdgeInsets.all(16.0),
+    decoration: const BoxDecoration(
+      color: Colors.green,
+      borderRadius: BorderRadius.only(
+        bottomLeft: Radius.circular(24),
+        bottomRight: Radius.circular(24),
       ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+    ),
+    child: Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'MOVES: ${_gameState.sessionMoves}  ',
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+            if (_gameState.currentMode.calculatesOptimum)
               Text(
-                'MOVES: ${_gameState.sessionMoves}  ',
-                style: const TextStyle(color: Colors.white70, fontSize: 14),
-              ),
-              Text(
-                'RATIO: ${(_gameState.moveQuality * 100).toStringAsFixed(0)}%  ',
+                'QUALITY: ${(_gameState.moveQuality * 100).toStringAsFixed(0)}%  ',
                 style: const TextStyle(
                     color: Colors.orangeAccent,
                     fontSize: 14,
                     fontWeight: FontWeight.bold),
               ),
-              Text(
-                'TIME: ${_gameState.sessionDurationString}',
-                style: const TextStyle(color: Colors.white70, fontSize: 14),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Text(
+              'TIME: ${_gameState.sessionDurationString}',
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _buildModeColumn(),
+        Column(
             children: [
-              _buildInfoColumn('MOVE CREDITS', 'B', isIcon: true),
-              Column(
+              Text(
+                _gameState.totalScore.toString().padLeft(4, '0'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 48,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    _gameState.totalScore.toString().padLeft(4, '0'),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 48,
-                      fontWeight: FontWeight.bold,
+                  if (_gameState.lastMoveScore != 0)
+                    Text(
+                      'YOU: ${_gameState.lastMoveScore > 0 ? "+" : ""}${_gameState.lastMoveScore}  ',
+                      style: const TextStyle(color: Colors.white70, fontSize: 16),
                     ),
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (_gameState.lastMoveScore != 0)
-                        Text(
-                          'LAST:${_gameState.lastMoveScore > 0 ? "+" : ""}${_gameState.lastMoveScore} ',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold),
-                        ),
-                      if (_gameState.previousOptimumScore > 0)
-                        Text(
-                          '(OPTIMUM:+${_gameState.previousOptimumScore})',
-                          style: const TextStyle(
-                              color: Colors.blueAccent,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold),
-                        ),
-                    ],
-                  ),
+                  if (_gameState.currentMode.calculatesOptimum && _gameState.previousOptimumScore > 0)
+                    Text(
+                      'BEST: +${_gameState.previousOptimumScore}',
+                      style: const TextStyle(color: Colors.blueAccent, fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
                 ],
               ),
-              GestureDetector(
-                onTap: () => _gameState.toggleHint(),
-                child: _buildInfoColumn(
-                    'OPTIMUM', _gameState.optimumScore.toString()),
-              ),
             ],
           ),
+          if (_gameState.currentMode.calculatesOptimum)
+            GestureDetector(
+              onTap: () => _gameState.toggleHint(),
+              child: _buildInfoColumn('OPTIMUM SCORE', _gameState.optimumScore.toString()),
+            )
+          else
+            const SizedBox(width: 50),
         ],
       ),
+      ],
+    ),
     );
   }
 
   Widget _buildInfoColumn(String label, String value, {bool isIcon = false}) {
     return Column(
       children: [
+        SizedBox(
+          width: 80,
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white, fontSize: 10),
+          ),
+        ),
+        const SizedBox(height: 4),
         Container(
           width: 50,
           height: 50,
@@ -162,8 +153,7 @@ class _GameScreenState extends State<GameScreen> {
           ),
           child: Center(
             child: isIcon
-                ? const Icon(Icons.monetization_on,
-                    color: Colors.orange, size: 30)
+                ? const Icon(Icons.monetization_on, color: Colors.orange, size: 30)
                 : Text(
                     value,
                     style: const TextStyle(
@@ -174,20 +164,96 @@ class _GameScreenState extends State<GameScreen> {
                   ),
           ),
         ),
-        const SizedBox(height: 4),
+      ],
+    );
+  }
+
+  Widget _buildBottomBar() {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.home, color: Colors.white70, size: 40),
+            onPressed: _showModeSelectionDialog,
+          ),
+          IconButton(
+            icon: Icon(
+              _gameState.isSnapshotMode ? Icons.camera : Icons.camera_outlined,
+              color: _gameState.isSnapshotMode ? Colors.blueAccent : Colors.white70,
+              size: 40,
+            ),
+            onPressed: () => _gameState.toggleSnapshotMode(),
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.play_arrow,
+              color: _gameState.isPausedForSnapshot ? Colors.greenAccent : Colors.white24,
+              size: 40,
+            ),
+            onPressed: _gameState.isPausedForSnapshot ? () => _gameState.continueFromSnapshot() : null,
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.refresh, color: Colors.white70, size: 40),
+                onPressed: _showRefreshConfirmation,
+              ),
+              if (_gameState.currentMode.calculatesOptimum)
+                Text(
+                  '-${_gameState.optimumScore}',
+                  style: const TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModeColumn() {
+    return Column(
+      children: [
         SizedBox(
           width: 80,
           child: Text(
-            label,
+            _gameState.currentMode.name,
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.white, fontSize: 10),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white30, width: 2),
+            color: Colors.black26,
+          ),
+          child: Center(
+            child: Icon(_gameState.currentMode.icon, color: Colors.orange, size: 30),
           ),
         ),
       ],
     );
   }
 
+  void _showModeSelectionDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => ModeSelectionDialog(gameState: _gameState),
+    );
+  }
+
   void _showRefreshConfirmation() {
+    _gameState.isDialogOpen = true;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -208,20 +274,24 @@ class _GameScreenState extends State<GameScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'A new board will be generated, but your total score will be decreased by the current optimum.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white70, fontSize: 16),
-            ),
-            const SizedBox(height: 20),
             Text(
-              '-${_gameState.optimumScore}',
-              style: const TextStyle(
-                color: Colors.redAccent,
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-              ),
+              _gameState.currentMode.calculatesOptimum
+                  ? 'A new board will be generated, but your total score will be decreased by the current optimum.'
+                  : 'A new board will be generated.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white70, fontSize: 16),
             ),
+            if (_gameState.currentMode.calculatesOptimum) ...[
+              const SizedBox(height: 20),
+              Text(
+                '-${_gameState.optimumScore}',
+                style: const TextStyle(
+                  color: Colors.redAccent,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ],
         ),
         actionsAlignment: MainAxisAlignment.spaceEvenly,
@@ -253,78 +323,9 @@ class _GameScreenState extends State<GameScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildBottomBar() {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.home, color: Colors.white70, size: 40),
-            onPressed: () {},
-          ),
-          // Grouped Snapshot & Continue
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(32),
-              border: Border.all(color: Colors.white10, width: 1),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: Icon(
-                    _gameState.isSnapshotMode
-                        ? Icons.camera
-                        : Icons.camera_outlined,
-                    color: _gameState.isSnapshotMode
-                        ? Colors.blueAccent
-                        : Colors.white70,
-                    size: 40,
-                  ),
-                  onPressed: () => _gameState.toggleSnapshotMode(),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: Icon(
-                    Icons.play_arrow,
-                    color: _gameState.isPausedForSnapshot
-                        ? Colors.greenAccent
-                        : Colors.white24,
-                    size: 40,
-                  ),
-                  onPressed: _gameState.isPausedForSnapshot
-                      ? () => _gameState.continueFromSnapshot()
-                      : null,
-                ),
-              ],
-            ),
-          ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.refresh, color: Colors.white70, size: 40),
-                onPressed: _showRefreshConfirmation,
-              ),
-              Text(
-                '-${_gameState.optimumScore}',
-                style: const TextStyle(
-                  color: Colors.redAccent,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+    ).then((_) {
+      _gameState.isDialogOpen = false;
+    });
   }
 
   Widget _buildCelebrationOverlay() {
