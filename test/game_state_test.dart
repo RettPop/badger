@@ -737,11 +737,12 @@ void main() {
 
       expect(gs.snakeDragPath.length, 3);
 
-      // Backtrack to B — B is now at (0,0), find its current position
-      final currentB = gs.tiles.firstWhere((t) => t.id == tileB.id);
-      gs.updateSnakeDragAt(currentB.row, currentB.col); // backtrack
+      // Backtrack: hover over C's current position (0,1) where C now sits.
+      // C is path[2]. Undoing C restores C and moves A back to B's original pos.
+      final currentC = gs.tiles.firstWhere((t) => t.id == tileC.id);
+      gs.updateSnakeDragAt(currentC.row, currentC.col); // backtrack undoes C
 
-      expect(gs.snakeDragPath.length, 2);
+      expect(gs.snakeDragPath.length, 2); // [A, B] remains
 
       // C should be restored to its original position
       final restoredC = gs.tiles.firstWhere((t) => t.id == tileC.id);

@@ -491,9 +491,10 @@ class GameState extends ChangeNotifier {
     }
 
     if (existingIndex >= 0) {
-      // Backtrack: hovering over a tile already in the path. Restore all tiles
-      // AFTER existingIndex to their original positions. The hovered tile stays.
-      for (int i = snakeDragPath.length - 1; i > existingIndex; i--) {
+      // Backtrack: hovering over a tile already in the path means "undo back to
+      // before this tile was added". Restore the hovered tile AND all tiles after
+      // it to their original positions.
+      for (int i = snakeDragPath.length - 1; i >= existingIndex; i--) {
         Tile pathTile = snakeDragPath[i];
         Tile originalTile = snakeDragOriginalTiles.firstWhere((t) => t.id == pathTile.id);
         int boardIdx = tiles.indexWhere((t) => t.id == pathTile.id);
@@ -501,14 +502,24 @@ class GameState extends ChangeNotifier {
           tiles[boardIdx] = tiles[boardIdx].copyWith(row: originalTile.row, col: originalTile.col);
         }
       }
-      // Restore dragged tile: it goes to the original position of the hovered tile
-      // (which is where it was when the hovered tile was first added to the path)
+      // Restore dragged tile to where it was before the hovered tile was added.
+      // If existingIndex == 1, that means back to origin.
+      // Otherwise, back to the original position of path[existingIndex - 1].
       int draggedIdx = tiles.indexWhere((t) => t.id == snakeDragOrigin!.id);
-      Tile hoveredOriginal = snakeDragOriginalTiles.firstWhere((t) => t.id == hoveredTile.id);
       if (draggedIdx >= 0) {
-        tiles[draggedIdx] = tiles[draggedIdx].copyWith(row: hoveredOriginal.row, col: hoveredOriginal.col);
+        if (existingIndex <= 1) {
+          Tile originalOrigin = snakeDragOriginalTiles.firstWhere((t) => t.id == snakeDragOrigin!.id);
+          tiles[draggedIdx] = tiles[draggedIdx].copyWith(row: originalOrigin.row, col: originalOrigin.col);
+        } else {
+          Tile prevTile = snakeDragPath[existingIndex - 1];
+          Tile prevOriginal = snakeDragOriginalTiles.firstWhere((t) => t.id == prevTile.id);
+          tiles[draggedIdx] = tiles[draggedIdx].copyWith(row: prevOriginal.row, col: prevOriginal.col);
+        }
       }
-      snakeDragPath = snakeDragPath.sublist(0, existingIndex + 1);
+      // Keep at least the origin in the path
+      snakeDragPath = existingIndex > 0
+          ? snakeDragPath.sublist(0, existingIndex)
+          : [snakeDragPath[0]];
     } else {
       // Extend path: hoveredTile shifts to dragged tile's current position,
       // dragged tile takes hoveredTile's former position
