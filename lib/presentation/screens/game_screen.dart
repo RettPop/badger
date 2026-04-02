@@ -187,6 +187,75 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
+  void _showRefreshConfirmation() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2D2D2D),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: const BorderSide(color: Colors.white10, width: 1),
+        ),
+        title: const Text(
+          'REDRAW BOARD?',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'A new board will be generated, but your total score will be decreased by the current optimum.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white70, fontSize: 16),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              '-${_gameState.optimumScore}',
+              style: const TextStyle(
+                color: Colors.redAccent,
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        actionsAlignment: MainAxisAlignment.spaceEvenly,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'CANCEL',
+              style: TextStyle(color: Colors.white54, fontSize: 16),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _gameState.initializeBoard(deductScore: true);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: const Text(
+              'CONFIRM',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBottomBar() {
     return Padding(
       padding: const EdgeInsets.all(24.0),
@@ -197,30 +266,61 @@ class _GameScreenState extends State<GameScreen> {
             icon: const Icon(Icons.home, color: Colors.white70, size: 40),
             onPressed: () {},
           ),
-          IconButton(
-            icon: Icon(
-              _gameState.isSnapshotMode ? Icons.camera : Icons.camera_outlined,
-              color:
-                  _gameState.isSnapshotMode ? Colors.blueAccent : Colors.white70,
-              size: 40,
+          // Grouped Snapshot & Continue
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(color: Colors.white10, width: 1),
             ),
-            onPressed: () => _gameState.toggleSnapshotMode(),
-          ),
-          IconButton(
-            icon: Icon(
-              Icons.play_arrow,
-              color: _gameState.isPausedForSnapshot
-                  ? Colors.greenAccent
-                  : Colors.white24,
-              size: 40,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(
+                    _gameState.isSnapshotMode
+                        ? Icons.camera
+                        : Icons.camera_outlined,
+                    color: _gameState.isSnapshotMode
+                        ? Colors.blueAccent
+                        : Colors.white70,
+                    size: 40,
+                  ),
+                  onPressed: () => _gameState.toggleSnapshotMode(),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(
+                    Icons.play_arrow,
+                    color: _gameState.isPausedForSnapshot
+                        ? Colors.greenAccent
+                        : Colors.white24,
+                    size: 40,
+                  ),
+                  onPressed: _gameState.isPausedForSnapshot
+                      ? () => _gameState.continueFromSnapshot()
+                      : null,
+                ),
+              ],
             ),
-            onPressed: _gameState.isPausedForSnapshot
-                ? () => _gameState.continueFromSnapshot()
-                : null,
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white70, size: 40),
-            onPressed: () => _gameState.initializeBoard(),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.refresh, color: Colors.white70, size: 40),
+                onPressed: _showRefreshConfirmation,
+              ),
+              Text(
+                '-${_gameState.optimumScore}',
+                style: const TextStyle(
+                  color: Colors.redAccent,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
         ],
       ),

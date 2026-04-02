@@ -74,7 +74,10 @@ class GameState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void initializeBoard() {
+  void initializeBoard({bool deductScore = false}) {
+    if (deductScore) {
+      totalScore = max(0, totalScore - optimumScore);
+    }
     tiles.clear();
     lastMoveScore = 0;
     optimumScore = 0;
