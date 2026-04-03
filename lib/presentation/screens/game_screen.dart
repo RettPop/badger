@@ -216,27 +216,41 @@ class _GameScreenState extends State<GameScreen> {
             icon: const Icon(Icons.home, color: Colors.white70, size: 40),
             onPressed: _showModeSelectionDialog,
           ),
-          IconButton(
-            icon: Icon(
-              _gameState.isSnapshotMode ? Icons.camera : Icons.camera_outlined,
-              color: _gameState.isSnapshotMode
-                  ? Colors.blueAccent
-                  : Colors.white70,
-              size: 40,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(color: Colors.white10, width: 1),
             ),
-            onPressed: () => _gameState.toggleSnapshotMode(),
-          ),
-          IconButton(
-            icon: Icon(
-              Icons.play_arrow,
-              color: _gameState.isPausedForSnapshot
-                  ? Colors.greenAccent
-                  : Colors.white24,
-              size: 40,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(
+                    _gameState.isSnapshotMode ? Icons.camera : Icons.camera_outlined,
+                    color: _gameState.isSnapshotMode
+                        ? Colors.blueAccent
+                        : Colors.white70,
+                    size: 40,
+                  ),
+                  onPressed: () => _gameState.toggleSnapshotMode(),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: Icon(
+                    Icons.play_arrow,
+                    color: _gameState.isPausedForSnapshot
+                        ? Colors.greenAccent
+                        : Colors.white24,
+                    size: 40,
+                  ),
+                  onPressed: _gameState.isPausedForSnapshot
+                      ? () => _gameState.continueFromSnapshot()
+                      : null,
+                ),
+              ],
             ),
-            onPressed: _gameState.isPausedForSnapshot
-                ? () => _gameState.continueFromSnapshot()
-                : null,
           ),
           Column(
             mainAxisSize: MainAxisSize.min,
