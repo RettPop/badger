@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../domain/logic/game_state.dart';
 import '../../domain/models/game_mode.dart';
+import '../../main.dart' show appVersion;
 
 class ModeSelectionDialog extends StatelessWidget {
   final GameState gameState;
@@ -101,9 +102,9 @@ class ModeSelectionDialog extends StatelessWidget {
           );
         }),
           const SizedBox(height: 12),
-          const Text(
-            'SMatcher v1.0.1',
-            style: TextStyle(color: Colors.white24, fontSize: 11),
+          Text(
+            'SMatcher v$appVersion',
+            style: const TextStyle(color: Colors.white24, fontSize: 11),
           ),
         ],
       ),

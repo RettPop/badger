@@ -120,23 +120,21 @@ class _GameScreenState extends State<GameScreen> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (_gameState.lastMoveScore != 0)
-                        Text(
-                          'LAST: ${_gameState.lastMoveScore > 0 ? "+" : ""}${_gameState.lastMoveScore}  ',
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 16,
-                          ),
+                      Text(
+                        'LAST: ${_gameState.lastMoveScore > 0 ? "+" : ""}${_gameState.lastMoveScore}  ',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 16,
                         ),
-                      if (_gameState.previousOptimumScore > 0)
-                        Text(
-                          '(OPTIMUM: ${_gameState.previousOptimumScore})',
-                          style: const TextStyle(
-                            color: Colors.blueAccent,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      ),
+                      Text(
+                        '(OPTIMUM: ${_gameState.previousOptimumScore})',
+                        style: const TextStyle(
+                          color: Colors.blueAccent,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
                         ),
+                      ),
                     ],
                   ),
                 ],

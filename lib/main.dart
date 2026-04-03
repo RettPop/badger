@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'presentation/screens/game_screen.dart';
 
-void main() {
+String appVersion = '';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final info = await PackageInfo.fromPlatform();
+  appVersion = '${info.version}+${info.buildNumber}';
   runApp(const SMatcherApp());
 }
 
