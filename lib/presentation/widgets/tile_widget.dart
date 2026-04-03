@@ -79,7 +79,7 @@ class TileWidget extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.red,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
+                border: Border.all(color: Colors.white, width: 1),
                 boxShadow: const [
                   BoxShadow(
                     color: Colors.black45,
@@ -93,8 +93,9 @@ class TileWidget extends StatelessWidget {
                   '${tile.value}',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: badgeDiameter * 0.6,
+                    fontSize: badgeDiameter * 0.75,
                     fontWeight: FontWeight.bold,
+                    height: 1.0,
                   ),
                 ),
               ),

@@ -168,21 +168,11 @@ class _GameScreenState extends State<GameScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          width: 80,
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white, fontSize: 10),
-          ),
-        ),
-        const SizedBox(height: 2),
         Container(
           width: 50,
           height: 50,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white30, width: 2),
             color: Colors.black26,
           ),
           child: Center(
@@ -196,10 +186,19 @@ class _GameScreenState extends State<GameScreen> {
                     value,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 20,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+          ),
+        ),
+        const SizedBox(height: 2),
+        SizedBox(
+          width: 80,
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white, fontSize: 10),
           ),
         ),
       ],
@@ -283,21 +282,11 @@ class _GameScreenState extends State<GameScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          width: 80,
-          child: Text(
-            _gameState.currentMode.name,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white, fontSize: 10),
-          ),
-        ),
-        const SizedBox(height: 2),
         Container(
           width: 50,
           height: 50,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white30, width: 2),
             color: Colors.black26,
           ),
           child: Center(
@@ -306,6 +295,15 @@ class _GameScreenState extends State<GameScreen> {
               color: Colors.orange,
               size: 30,
             ),
+          ),
+        ),
+        const SizedBox(height: 2),
+        SizedBox(
+          width: 80,
+          child: Text(
+            _gameState.currentMode.name,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white, fontSize: 10),
           ),
         ),
       ],
