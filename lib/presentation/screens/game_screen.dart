@@ -71,7 +71,7 @@ class _GameScreenState extends State<GameScreen> {
 
   Widget _buildTopBar() {
     return Container(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: const BoxDecoration(
         color: Colors.green,
         borderRadius: BorderRadius.only(
@@ -80,6 +80,7 @@ class _GameScreenState extends State<GameScreen> {
         ),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -102,12 +103,13 @@ class _GameScreenState extends State<GameScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildModeColumn(),
               Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     _gameState.totalScore.toString().padLeft(4, '0'),
@@ -115,6 +117,7 @@ class _GameScreenState extends State<GameScreen> {
                       color: Colors.white,
                       fontSize: 48,
                       fontWeight: FontWeight.bold,
+                      height: 1.0,
                     ),
                   ),
                   Row(
@@ -163,6 +166,7 @@ class _GameScreenState extends State<GameScreen> {
 
   Widget _buildInfoColumn(String label, String value, {bool isIcon = false}) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
           width: 80,
@@ -172,7 +176,7 @@ class _GameScreenState extends State<GameScreen> {
             style: const TextStyle(color: Colors.white, fontSize: 10),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Container(
           width: 50,
           height: 50,
@@ -263,6 +267,7 @@ class _GameScreenState extends State<GameScreen> {
 
   Widget _buildModeColumn() {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
           width: 80,
@@ -272,7 +277,7 @@ class _GameScreenState extends State<GameScreen> {
             style: const TextStyle(color: Colors.white, fontSize: 10),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Container(
           width: 50,
           height: 50,
