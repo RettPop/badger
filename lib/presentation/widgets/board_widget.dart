@@ -150,20 +150,32 @@ class _BoardWidgetState extends State<BoardWidget> {
             _lastSnakeHoveredTile = Tile(id: 'hover', row: row, col: col,
                 color: const Color(0), letter: '', value: 0);
             widget.gameState.updateSnakeDragAt(row, col);
+            // Restart preview timer for the new board state
+            widget.gameState.startDragPreviewOptimumForCurrentBoard();
           }
         }
       }
     } else {
-      setState(() {
-        if (hoveredTile != null && hoveredTile.id != tile.id) {
-          if (!widget.gameState.currentMode.allowsDragToAny) {
-            _dragTarget = _isAdjacent(tile, hoveredTile) ? hoveredTile : null;
-          } else {
-            _dragTarget = hoveredTile;
-          }
+      Tile? newTarget;
+      if (hoveredTile != null && hoveredTile.id != tile.id) {
+        if (!widget.gameState.currentMode.allowsDragToAny) {
+          newTarget = _isAdjacent(tile, hoveredTile) ? hoveredTile : null;
         } else {
-          _dragTarget = null;
+          newTarget = hoveredTile;
         }
+      }
+
+      // Start/cancel drag preview optimum for modes without auto-optimum
+      if (!widget.gameState.currentMode.calculatesOptimum) {
+        if (newTarget != null && newTarget.id != (_dragTarget?.id)) {
+          widget.gameState.startDragPreviewOptimum(tile, newTarget);
+        } else if (newTarget == null && _dragTarget != null) {
+          widget.gameState.cancelDragPreviewOptimum();
+        }
+      }
+
+      setState(() {
+        _dragTarget = newTarget;
       });
     }
   }
@@ -177,6 +189,7 @@ class _BoardWidgetState extends State<BoardWidget> {
     } else if (_draggedTile != null) {
       final source = _draggedTile!;
 
+      // Don't cancel preview here — swap methods capture it before clearing
       if (widget.gameState.currentMode.isSnakeDrag) {
         widget.gameState.endSnakeDrag();
       } else if (_dragTarget != null && _dragTarget!.id != source.id) {
@@ -185,7 +198,11 @@ class _BoardWidgetState extends State<BoardWidget> {
           widget.gameState.swapTilesAny(source, target);
         } else if (_isAdjacent(source, target)) {
           widget.gameState.swapTiles(source, target);
+        } else {
+          widget.gameState.cancelDragPreviewOptimum();
         }
+      } else {
+        widget.gameState.cancelDragPreviewOptimum();
       }
 
       setState(() {

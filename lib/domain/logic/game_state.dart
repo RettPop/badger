@@ -56,6 +56,11 @@ class GameState extends ChangeNotifier {
   Tile? snakeDragOrigin;
   List<Tile> snakeDragOriginalTiles = [];
 
+  // Drag preview optimum (for modes that don't auto-calculate)
+  Timer? _dragPreviewTimer;
+  int dragPreviewOptimum = 0;
+  bool hasDragPreview = false;
+
   late final Random _random;
 
   final List<Color> colors = [
@@ -77,6 +82,8 @@ class GameState extends ChangeNotifier {
   void dispose() {
     _arcadeTimer?.cancel();
     _arcadeTimer = null;
+    _dragPreviewTimer?.cancel();
+    _dragPreviewTimer = null;
     super.dispose();
   }
 
@@ -397,6 +404,13 @@ class GameState extends ChangeNotifier {
   Future<void> swapTilesAny(Tile t1, Tile t2) async {
     if (isMatching || isPausedForSnapshot) return;
 
+    // Capture drag preview as the "optimum" for this move
+    if (hasDragPreview) {
+      previousOptimumScore = dragPreviewOptimum;
+      sessionOptimumScore += dragPreviewOptimum;
+    }
+    cancelDragPreviewOptimum();
+
     isMatching = true;
     showHint = false;
     notifyListeners();
@@ -547,6 +561,13 @@ class GameState extends ChangeNotifier {
   /// Mode 5: End snake drag
   Future<void> endSnakeDrag() async {
     if (snakeDragOrigin == null) return;
+
+    // Capture drag preview as the "optimum" for this move
+    if (hasDragPreview) {
+      previousOptimumScore = dragPreviewOptimum;
+      sessionOptimumScore += dragPreviewOptimum;
+    }
+    cancelDragPreviewOptimum();
 
     // Check if full backtrack (all tiles at original positions)
     bool fullBacktrack = snakeDragPath.length <= 1;
@@ -721,6 +742,99 @@ class GameState extends ChangeNotifier {
         }
       }
     }
+  }
+
+  /// Start a 300ms timer to calculate optimum preview for a hypothetical swap.
+  /// Called during drag in modes that don't auto-calculate optimum.
+  void startDragPreviewOptimum(Tile source, Tile target) {
+    _dragPreviewTimer?.cancel();
+    _dragPreviewTimer = Timer(const Duration(milliseconds: 300), () {
+      // Simulate the swap on a copy of the board
+      List<Tile> tempTiles = tiles.map((t) => Tile(
+        id: t.id, row: t.row, col: t.col,
+        color: t.color, letter: t.letter, value: t.value,
+      )).toList();
+
+      int idx1 = tempTiles.indexWhere((t) => t.id == source.id);
+      int idx2 = tempTiles.indexWhere((t) => t.id == target.id);
+      if (idx1 < 0 || idx2 < 0) return;
+
+      Tile t1 = tempTiles[idx1];
+      Tile t2 = tempTiles[idx2];
+      tempTiles[idx1] = t1.copyWith(row: t2.row, col: t2.col);
+      tempTiles[idx2] = t2.copyWith(row: t1.row, col: t1.col);
+
+      // Calculate optimum on the hypothetical board using _simulateMove logic
+      int maxScore = 0;
+      for (int r = 0; r < rows; r++) {
+        for (int c = 0; c < cols; c++) {
+          if (c < cols - 1) {
+            var res = _simulateMoveOnBoard(tempTiles, r, c, r, c + 1);
+            if (res > maxScore) maxScore = res;
+          }
+          if (r < rows - 1) {
+            var res = _simulateMoveOnBoard(tempTiles, r, c, r + 1, c);
+            if (res > maxScore) maxScore = res;
+          }
+        }
+      }
+
+      dragPreviewOptimum = maxScore;
+      hasDragPreview = true;
+      notifyListeners();
+    });
+  }
+
+  /// Start a 300ms timer to calculate optimum on the current board state.
+  /// Used for snake drag where tiles have already shifted in the model.
+  void startDragPreviewOptimumForCurrentBoard() {
+    _dragPreviewTimer?.cancel();
+    _dragPreviewTimer = Timer(const Duration(milliseconds: 300), () {
+      int maxScore = 0;
+      for (int r = 0; r < rows; r++) {
+        for (int c = 0; c < cols; c++) {
+          if (c < cols - 1) {
+            var res = _simulateMoveOnBoard(tiles, r, c, r, c + 1);
+            if (res > maxScore) maxScore = res;
+          }
+          if (r < rows - 1) {
+            var res = _simulateMoveOnBoard(tiles, r, c, r + 1, c);
+            if (res > maxScore) maxScore = res;
+          }
+        }
+      }
+      dragPreviewOptimum = maxScore;
+      hasDragPreview = true;
+      notifyListeners();
+    });
+  }
+
+  /// Cancel any pending drag preview calculation.
+  void cancelDragPreviewOptimum() {
+    _dragPreviewTimer?.cancel();
+    _dragPreviewTimer = null;
+    if (hasDragPreview) {
+      hasDragPreview = false;
+      dragPreviewOptimum = 0;
+      notifyListeners();
+    }
+  }
+
+  /// Simulate a move on an arbitrary board and return the score.
+  int _simulateMoveOnBoard(List<Tile> board, int r1, int c1, int r2, int c2) {
+    List<Tile> temp = List.from(board);
+    int idx1 = temp.indexWhere((t) => t.row == r1 && t.col == c1);
+    int idx2 = temp.indexWhere((t) => t.row == r2 && t.col == c2);
+    if (idx1 < 0 || idx2 < 0) return 0;
+
+    Tile t1 = temp[idx1];
+    Tile t2 = temp[idx2];
+    temp[idx1] = t1.copyWith(row: r2, col: c2);
+    temp[idx2] = t2.copyWith(row: r1, col: c1);
+
+    List<List<Tile>> matches = findMatches(customTiles: temp, activeTiles: [temp[idx1], temp[idx2]]);
+    if (matches.isEmpty) return 0;
+    return calculateMatchesScore(matches);
   }
 
   void calculateOptimumScore() {

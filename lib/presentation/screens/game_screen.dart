@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../domain/logic/game_state.dart';
 import '../../domain/models/game_mode.dart';
@@ -13,6 +14,21 @@ class GameScreen extends StatefulWidget {
 
 class _GameScreenState extends State<GameScreen> {
   final GameState _gameState = GameState();
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,14 +87,13 @@ Widget _buildTopBar() {
               'MOVES: ${_gameState.sessionMoves}  ',
               style: const TextStyle(color: Colors.white70, fontSize: 14),
             ),
-            if (_gameState.currentMode.calculatesOptimum)
-              Text(
-                'QUALITY: ${(_gameState.moveQuality * 100).toStringAsFixed(0)}%  ',
-                style: const TextStyle(
-                    color: Colors.orangeAccent,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold),
-              ),
+            Text(
+              'RATE: ${(_gameState.moveQuality * 100).toStringAsFixed(0)}%  ',
+              style: const TextStyle(
+                  color: Colors.orangeAccent,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold),
+            ),
             Text(
               'TIME: ${_gameState.sessionDurationString}',
               style: const TextStyle(color: Colors.white70, fontSize: 14),
@@ -105,12 +120,12 @@ Widget _buildTopBar() {
                 children: [
                   if (_gameState.lastMoveScore != 0)
                     Text(
-                      'YOU: ${_gameState.lastMoveScore > 0 ? "+" : ""}${_gameState.lastMoveScore}  ',
+                      'LAST: ${_gameState.lastMoveScore > 0 ? "+" : ""}${_gameState.lastMoveScore}  ',
                       style: const TextStyle(color: Colors.white70, fontSize: 16),
                     ),
-                  if (_gameState.currentMode.calculatesOptimum && _gameState.previousOptimumScore > 0)
+                  if (_gameState.previousOptimumScore > 0)
                     Text(
-                      'BEST: +${_gameState.previousOptimumScore}',
+                      'FROM: +${_gameState.previousOptimumScore}',
                       style: const TextStyle(color: Colors.blueAccent, fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                 ],
@@ -120,10 +135,12 @@ Widget _buildTopBar() {
           if (_gameState.currentMode.calculatesOptimum)
             GestureDetector(
               onTap: () => _gameState.toggleHint(),
-              child: _buildInfoColumn('OPTIMUM SCORE', _gameState.optimumScore.toString()),
+              child: _buildInfoColumn('OPTIMUM', _gameState.optimumScore.toString()),
             )
+          else if (_gameState.hasDragPreview)
+            _buildInfoColumn('OPTIMUM IF', _gameState.dragPreviewOptimum.toString())
           else
-            const SizedBox(width: 50),
+            _buildInfoColumn('OPTIMUM', '?'),
         ],
       ),
       ],
