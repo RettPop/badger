@@ -68,83 +68,98 @@ class _GameScreenState extends State<GameScreen> {
       ),
     );
   }
-Widget _buildTopBar() {
-  return Container(
-    padding: const EdgeInsets.all(16.0),
-    decoration: const BoxDecoration(
-      color: Colors.green,
-      borderRadius: BorderRadius.only(
-        bottomLeft: Radius.circular(24),
-        bottomRight: Radius.circular(24),
-      ),
-    ),
-    child: Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'MOVES: ${_gameState.sessionMoves}  ',
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
-            ),
-            Text(
-              'RATE: ${(_gameState.moveQuality * 100).toStringAsFixed(0)}%  ',
-              style: const TextStyle(
-                  color: Colors.orangeAccent,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold),
-            ),
-            Text(
-              'TIME: ${_gameState.sessionDurationString}',
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
-            ),
-          ],
+
+  Widget _buildTopBar() {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      decoration: const BoxDecoration(
+        color: Colors.green,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
         ),
-        const SizedBox(height: 8),
-        Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _buildModeColumn(),
-        Column(
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                _gameState.totalScore.toString().padLeft(4, '0'),
+                'MOVES: ${_gameState.sessionMoves}  ',
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+              Text(
+                'RATE: ${(_gameState.moveQuality * 100).toStringAsFixed(0)}%  ',
                 style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 48,
+                  color: Colors.orangeAccent,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_gameState.lastMoveScore != 0)
-                    Text(
-                      'LAST: ${_gameState.lastMoveScore > 0 ? "+" : ""}${_gameState.lastMoveScore}  ',
-                      style: const TextStyle(color: Colors.white70, fontSize: 16),
-                    ),
-                  if (_gameState.previousOptimumScore > 0)
-                    Text(
-                      'FROM: +${_gameState.previousOptimumScore}',
-                      style: const TextStyle(color: Colors.blueAccent, fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                ],
+              Text(
+                'TIME: ${_gameState.sessionDurationString}',
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
               ),
             ],
           ),
-          if (_gameState.currentMode.calculatesOptimum)
-            GestureDetector(
-              onTap: () => _gameState.toggleHint(),
-              child: _buildInfoColumn('OPTIMUM', _gameState.optimumScore.toString()),
-            )
-          else if (_gameState.hasDragPreview)
-            _buildInfoColumn('OPTIMUM IF', _gameState.dragPreviewOptimum.toString())
-          else
-            _buildInfoColumn('OPTIMUM', '?'),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildModeColumn(),
+              Column(
+                children: [
+                  Text(
+                    _gameState.totalScore.toString().padLeft(4, '0'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 48,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_gameState.lastMoveScore != 0)
+                        Text(
+                          'LAST: ${_gameState.lastMoveScore > 0 ? "+" : ""}${_gameState.lastMoveScore}  ',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 16,
+                          ),
+                        ),
+                      if (_gameState.previousOptimumScore > 0)
+                        Text(
+                          '(OPTIMUM: ${_gameState.previousOptimumScore})',
+                          style: const TextStyle(
+                            color: Colors.blueAccent,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+              if (_gameState.currentMode.calculatesOptimum)
+                GestureDetector(
+                  onTap: () => _gameState.toggleHint(),
+                  child: _buildInfoColumn(
+                    'OPTIMUM',
+                    _gameState.optimumScore.toString(),
+                  ),
+                )
+              else if (_gameState.hasDragPreview)
+                _buildInfoColumn(
+                  'OPTIMUM IF',
+                  _gameState.dragPreviewOptimum.toString(),
+                )
+              else
+                _buildInfoColumn('OPTIMUM', '?'),
+            ],
+          ),
         ],
       ),
-      ],
-    ),
     );
   }
 
@@ -170,7 +185,11 @@ Widget _buildTopBar() {
           ),
           child: Center(
             child: isIcon
-                ? const Icon(Icons.monetization_on, color: Colors.orange, size: 30)
+                ? const Icon(
+                    Icons.monetization_on,
+                    color: Colors.orange,
+                    size: 30,
+                  )
                 : Text(
                     value,
                     style: const TextStyle(
@@ -198,7 +217,9 @@ Widget _buildTopBar() {
           IconButton(
             icon: Icon(
               _gameState.isSnapshotMode ? Icons.camera : Icons.camera_outlined,
-              color: _gameState.isSnapshotMode ? Colors.blueAccent : Colors.white70,
+              color: _gameState.isSnapshotMode
+                  ? Colors.blueAccent
+                  : Colors.white70,
               size: 40,
             ),
             onPressed: () => _gameState.toggleSnapshotMode(),
@@ -206,16 +227,24 @@ Widget _buildTopBar() {
           IconButton(
             icon: Icon(
               Icons.play_arrow,
-              color: _gameState.isPausedForSnapshot ? Colors.greenAccent : Colors.white24,
+              color: _gameState.isPausedForSnapshot
+                  ? Colors.greenAccent
+                  : Colors.white24,
               size: 40,
             ),
-            onPressed: _gameState.isPausedForSnapshot ? () => _gameState.continueFromSnapshot() : null,
+            onPressed: _gameState.isPausedForSnapshot
+                ? () => _gameState.continueFromSnapshot()
+                : null,
           ),
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                icon: const Icon(Icons.refresh, color: Colors.white70, size: 40),
+                icon: const Icon(
+                  Icons.refresh,
+                  color: Colors.white70,
+                  size: 40,
+                ),
                 onPressed: _showRefreshConfirmation,
               ),
               if (_gameState.currentMode.calculatesOptimum)
@@ -255,7 +284,11 @@ Widget _buildTopBar() {
             color: Colors.black26,
           ),
           child: Center(
-            child: Icon(_gameState.currentMode.icon, color: Colors.orange, size: 30),
+            child: Icon(
+              _gameState.currentMode.icon,
+              color: Colors.orange,
+              size: 30,
+            ),
           ),
         ),
       ],
@@ -323,7 +356,10 @@ Widget _buildTopBar() {
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
-              _gameState.initializeBoard(deductScore: true, resetSession: false);
+              _gameState.initializeBoard(
+                deductScore: true,
+                resetSession: false,
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
