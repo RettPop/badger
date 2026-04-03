@@ -103,11 +103,10 @@ class _GameScreenState extends State<GameScreen> {
               ),
             ],
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Stack(
+            alignment: Alignment.topCenter,
             children: [
-              _buildModeColumn(),
+              // Center: score + last move (always centered)
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -142,21 +141,16 @@ class _GameScreenState extends State<GameScreen> {
                   ),
                 ],
               ),
-              if (_gameState.currentMode.calculatesOptimum)
-                GestureDetector(
-                  onTap: () => _gameState.toggleHint(),
-                  child: _buildInfoColumn(
-                    'OPTIMUM',
-                    _gameState.optimumScore.toString(),
-                  ),
-                )
-              else if (_gameState.hasDragPreview)
-                _buildInfoColumn(
-                  'OPTIMUM IF',
-                  _gameState.dragPreviewOptimum.toString(),
-                )
-              else
-                _buildInfoColumn('OPTIMUM', '?'),
+              // Left: mode icon
+              Align(
+                alignment: Alignment.topLeft,
+                child: _buildModeColumn(),
+              ),
+              // Right: optimum icon
+              Align(
+                alignment: Alignment.topRight,
+                child: _buildOptimumColumn(),
+              ),
             ],
           ),
         ],
@@ -298,16 +292,33 @@ class _GameScreenState extends State<GameScreen> {
           ),
         ),
         const SizedBox(height: 2),
-        SizedBox(
-          width: 80,
-          child: Text(
-            _gameState.currentMode.name,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white, fontSize: 10),
-          ),
+        Text(
+          _gameState.currentMode.name,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          style: const TextStyle(color: Colors.white, fontSize: 10),
         ),
       ],
     );
+  }
+
+  Widget _buildOptimumColumn() {
+    if (_gameState.currentMode.calculatesOptimum) {
+      return GestureDetector(
+        onTap: () => _gameState.toggleHint(),
+        child: _buildInfoColumn(
+          'OPTIMUM',
+          _gameState.optimumScore.toString(),
+        ),
+      );
+    } else if (_gameState.hasDragPreview) {
+      return _buildInfoColumn(
+        'OPTIMUM IF',
+        _gameState.dragPreviewOptimum.toString(),
+      );
+    } else {
+      return _buildInfoColumn('OPTIMUM', '?');
+    }
   }
 
   void _showModeSelectionDialog() {
