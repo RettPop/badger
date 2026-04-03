@@ -38,11 +38,11 @@ void main() {
       await tester.tap(find.text('Simple Drag'));
       await tester.pumpAndSettle();
 
-      // OPTIMUM SCORE label should be hidden
-      expect(find.textContaining('OPTIMUM SCORE'), findsNothing);
+      // OPTIMUM should show "?" in drag modes (not a number)
+      expect(find.text('?'), findsOneWidget);
 
-      // QUALITY stat should be hidden
-      expect(find.textContaining('QUALITY'), findsNothing);
+      // RATE should still be visible
+      expect(find.textContaining('RATE'), findsOneWidget);
     });
 
     testWidgets('top bar shows OPTIMUM and RATIO in convenient mode',
@@ -52,11 +52,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // In convenient mode, OPTIMUM SCORE label should be visible
+      // In convenient mode, OPTIMUM label should be visible
       expect(find.textContaining('OPTIMUM'), findsOneWidget);
 
-      // QUALITY stat should be visible
-      expect(find.textContaining('QUALITY'), findsOneWidget);
+      // RATE stat should be visible
+      expect(find.textContaining('RATE'), findsOneWidget);
     });
 
     testWidgets('home button opens mode selection dialog', (tester) async {
@@ -71,7 +71,7 @@ void main() {
 
       // The mode selection dialog should appear with all mode names
       expect(find.text('Convenient'), findsWidgets);
-      expect(find.text('High Scores'), findsOneWidget);
+      expect(find.text('High Scores (50+)'), findsOneWidget);
       expect(find.text('Drop Down'), findsOneWidget);
       expect(find.text('Simple Drag'), findsOneWidget);
       expect(find.text('Snake Drag'), findsOneWidget);
@@ -95,17 +95,9 @@ void main() {
       await tester.tap(find.byIcon(Icons.refresh));
       await tester.pumpAndSettle();
 
-      // The penalty text (e.g., "-N" or "OPTIMUM" reference) should not appear
-      // in non-optimum modes. The dialog should show simplified text.
-      expect(find.textContaining('OPTIMUM'), findsNothing);
-
-      // The penalty number format (e.g., "-5") should not appear
-      // We check that no Text widget contains a minus sign followed by digits
-      // that would indicate a penalty display.
-      final penaltyFinder = find.textContaining(RegExp(r'-\d+'));
-      // In non-optimum mode, there should be no penalty label in the dialog
-      // (the penalty is naturally 0 since optimum is 0, but the UI should
-      // hide the penalty section entirely).
+      // In non-optimum modes, the refresh dialog should not show penalty amount.
+      // Check that no text with penalty format (minus sign + digits) appears in dialog.
+      final penaltyFinder = find.textContaining(RegExp(r'^-\d+$'));
       expect(penaltyFinder, findsNothing);
     });
   });

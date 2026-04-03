@@ -36,14 +36,15 @@ class ModeSelectionDialog extends StatelessWidget {
       contentPadding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       content: Column(
         mainAxisSize: MainAxisSize.min,
-        children: const [
-          GameModeType.convenient,
-          GameModeType.arcade,
-          GameModeType.highScores,
-          GameModeType.dropDown,
-          GameModeType.simpleDrag,
-          GameModeType.snakeDrag,
-        ].map((mode) {
+        children: [
+          ...[
+            GameModeType.convenient,
+            GameModeType.arcade,
+            GameModeType.highScores,
+            GameModeType.dropDown,
+            GameModeType.simpleDrag,
+            GameModeType.snakeDrag,
+          ].map((mode) {
           final bool isActive = mode == gameState.currentMode;
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
@@ -98,7 +99,13 @@ class ModeSelectionDialog extends StatelessWidget {
               ),
             ),
           );
-        }).toList(),
+        }),
+          const SizedBox(height: 12),
+          const Text(
+            'SMatcher v1.0.1',
+            style: TextStyle(color: Colors.white24, fontSize: 11),
+          ),
+        ],
       ),
     );
   }

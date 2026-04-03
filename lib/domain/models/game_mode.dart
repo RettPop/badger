@@ -8,7 +8,7 @@ extension GameModeTypeExtension on GameModeType {
       case GameModeType.convenient:
         return 'Convenient';
       case GameModeType.highScores:
-        return 'High Scores';
+        return 'High Scores (50+)';
       case GameModeType.dropDown:
         return 'Drop Down';
       case GameModeType.simpleDrag:

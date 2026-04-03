@@ -17,7 +17,7 @@ void main() {
 
     test('highScores mode has correct properties', () {
       const mode = GameModeType.highScores;
-      expect(mode.name, 'High Scores');
+      expect(mode.name, 'High Scores (50+)');
       expect(mode.calculatesOptimum, isTrue);
       expect(mode.highScoreGeneration, isTrue);
       expect(mode.usesGravity, isFalse);
@@ -72,12 +72,17 @@ void main() {
 
     test('all modes have non-empty name and valid icon', () {
       for (final mode in GameModeType.values) {
-        expect(mode.name.isNotEmpty, isTrue,
-            reason: '$mode should have a non-empty name');
-        expect(mode.icon, isNotNull,
-            reason: '$mode should have a valid icon');
-        expect(mode.icon, isA<IconData>(),
-            reason: '$mode icon should be an IconData');
+        expect(
+          mode.name.isNotEmpty,
+          isTrue,
+          reason: '$mode should have a non-empty name',
+        );
+        expect(mode.icon, isNotNull, reason: '$mode should have a valid icon');
+        expect(
+          mode.icon,
+          isA<IconData>(),
+          reason: '$mode icon should be an IconData',
+        );
       }
     });
   });

@@ -50,7 +50,7 @@ void main() {
 
       // Verify all 6 mode names are displayed
       expect(find.text('Convenient'), findsOneWidget);
-      expect(find.text('High Scores'), findsOneWidget);
+      expect(find.text('High Scores (50+)'), findsOneWidget);
       expect(find.text('Drop Down'), findsOneWidget);
       expect(find.text('Simple Drag'), findsOneWidget);
       expect(find.text('Snake Drag'), findsOneWidget);
@@ -82,24 +82,26 @@ void main() {
       );
     });
 
-    testWidgets('tapping a mode calls setMode and dismisses dialog',
-        (tester) async {
+    testWidgets('tapping a mode calls setMode and dismisses dialog', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildDialogTestApp());
       await tester.pumpAndSettle();
 
       // Tap on "High Scores" mode
-      await tester.tap(find.text('High Scores'));
+      await tester.tap(find.text('High Scores (50+)'));
       await tester.pumpAndSettle();
 
       // Verify the mode was changed
       expect(gameState.currentMode, GameModeType.highScores);
 
       // Verify the dialog is dismissed (mode names no longer visible)
-      expect(find.text('High Scores'), findsNothing);
+      expect(find.text('High Scores (50+)'), findsNothing);
     });
 
-    testWidgets('cancel button dismisses without changing mode',
-        (tester) async {
+    testWidgets('cancel button dismisses without changing mode', (
+      tester,
+    ) async {
       final originalMode = gameState.currentMode;
 
       await tester.pumpWidget(buildDialogTestApp());
@@ -132,10 +134,12 @@ void main() {
       final List<double> xPositions = [];
       for (final mode in GameModeType.values) {
         final iconFinder = find.byIcon(mode.icon);
-        expect(iconFinder, findsOneWidget,
-            reason: 'Mode ${mode.name} icon should be present');
-        final renderBox =
-            iconFinder.evaluate().first.renderObject as RenderBox;
+        expect(
+          iconFinder,
+          findsOneWidget,
+          reason: 'Mode ${mode.name} icon should be present',
+        );
+        final renderBox = iconFinder.evaluate().first.renderObject as RenderBox;
         final position = renderBox.localToGlobal(Offset.zero);
         xPositions.add(position.dx);
       }
@@ -143,8 +147,11 @@ void main() {
       // All mode icons should share the same x position (vertically aligned)
       final firstX = xPositions.first;
       for (final x in xPositions) {
-        expect((x - firstX).abs(), lessThan(2.0),
-            reason: 'All mode icons should be vertically aligned');
+        expect(
+          (x - firstX).abs(),
+          lessThan(2.0),
+          reason: 'All mode icons should be vertically aligned',
+        );
       }
     });
   });
